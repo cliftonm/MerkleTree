@@ -74,7 +74,14 @@ namespace Clifton.Blockchain
 
         public bool Equals(MerkleHash hash)
         {
-            return Value.SequenceEqual(hash.Value);
+            bool ret = false;
+
+            if (((object)hash) != null)
+            {
+                ret = Value.SequenceEqual(hash.Value);
+            }
+
+            return ret;
         }
     }
 }

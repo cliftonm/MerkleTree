@@ -47,11 +47,37 @@ namespace Clifton.Blockchain
             hashes.ForEach(h => AppendLeaf(h));
         }
 
+        public MerkleHash AddTree(MerkleTree tree)
+        {
+            Contract(() => leaves.Count > 0, "Cannot add to a tree with no leaves.");
+            FixOddNumberLeaves();
+            tree.leaves.ForEach(l => AppendLeaf(l.Hash));
+
+            return BuildTree();
+        }
+
+        /// <summary>
+        /// If we have an odd number of leaves, add a leaf that
+        /// is a duplicate of the last leaf hash so that when we add the leaves of the new tree,
+        /// we don't change the root hash of the current tree.
+        /// This is performed on the source tree whenever a tree is added, and can be performed
+        /// at any time to ensure an even number of leaves, so that the old root isn't affected,
+        /// when adding new leaves.
+        /// </summary>
+        public void FixOddNumberLeaves()
+        {
+            if ((leaves.Count & 1) == 1)
+            {
+                AppendLeaf(leaves.Last().Hash);
+            }
+        }
+
         /// <summary>
         /// Builds the tree for leaves and returns the root node.
         /// </summary>
         public MerkleHash BuildTree()
         {
+            Contract(() => leaves.Count > 0, "Cannot build a tree with no leaves.");
             BuildTree(leaves);
 
             return RootNode.Hash;
@@ -84,8 +110,26 @@ namespace Clifton.Blockchain
             return auditTrail;
         }
 
+        /// <summary>
+        /// Verifies ordering and consistency of the first n leaves, such that we reach the expected subroot.
+        /// This verifies that the prior data has not been changed and that leaf order has been preserved.
+        /// </summary>
+        public bool ConsistencyCheck(MerkleHash expectedSubrootHash, int numLeaves)
+        {
+            MerkleHash[] subtreeLeaves = leaves.Take(numLeaves).Select(n=>n.Hash).ToArray();
+            MerkleTree subtree = new MerkleTree();
+            subtree.AppendLeaves(subtreeLeaves);
+            MerkleHash subtreeHash = subtree.BuildTree();
+
+            return subtreeHash == expectedSubrootHash;
+        }
+
+        /// <summary>
+        /// Verify that if we walk up the tree from a particular leaf, we encounter the expected root hash.
+        /// </summary>
         public static bool VerifyAudit(MerkleHash rootHash, MerkleHash leafHash, List<MerkleAuditHash> auditTrail)
         {
+            Contract(() => auditTrail.Count > 0, "Audit trail cannot be empty.");
             MerkleHash testHash = leafHash;
 
             // TODO: Inefficient - compute hashes directly.
@@ -97,6 +141,33 @@ namespace Clifton.Blockchain
             }
 
             return rootHash == testHash;
+        }
+
+        /// <summary>
+        /// As an alternate consistency check, we verify that walking up the tree from a particular leaf, we encounter
+        /// along the way an "old" root hash.
+        /// </summary>
+        public static bool VerifyPartialAudit(MerkleHash rootHash, MerkleHash leafHash, List<MerkleAuditHash> auditTrail)
+        {
+            Contract(() => auditTrail.Count > 0, "Audit trail cannot be empty.");
+            bool ret = false;
+            MerkleHash testHash = leafHash;
+
+            // TODO: Inefficient - compute hashes directly.
+            foreach (MerkleAuditHash auditHash in auditTrail)
+            {
+                testHash = auditHash.Direction == MerkleAuditHash.Branch.Left ?
+                    MerkleHash.Create(testHash.Value.Concat(auditHash.Hash.Value).ToArray()) :
+                    MerkleHash.Create(auditHash.Hash.Value.Concat(testHash.Value).ToArray());
+
+                if (rootHash == testHash)
+                {
+                    ret = true;
+                    break;
+                }
+            }
+
+            return ret;
         }
 
         protected void BuildAuditTrail(List<MerkleAuditHash> auditTrail, MerkleNode parent, MerkleNode child)
@@ -123,6 +194,8 @@ namespace Clifton.Blockchain
         /// <param name="nodes"></param>
         protected void BuildTree(List<MerkleNode> nodes)
         {
+            Contract(() => nodes.Count > 0, "node list not expected to be empty.");
+
             if (nodes.Count == 1)
             {
                 RootNode = nodes[0];
