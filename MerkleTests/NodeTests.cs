@@ -1,4 +1,4 @@
-﻿using System;
+﻿using System.Collections.Generic;
 using System.Text;
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -10,6 +10,14 @@ namespace MerkleTests
     [TestClass]
     public class NodeTests
     {
+        [TestMethod]
+        public void HashesAreSameTest()
+        {
+            MerkleHash h1 = MerkleHash.Create("abc");
+            MerkleHash h2 = MerkleHash.Create("abc");
+            Assert.IsTrue(h1 == h2);
+        }
+
         [TestMethod]
         public void CreateNodeTest()
         {
@@ -70,26 +78,51 @@ namespace MerkleTests
         }
 
         [TestMethod]
-        public void TestCreateBalancedTree()
+        public void CreateBalancedTreeTest()
         {
             MerkleTree tree = new MerkleTree();
-            tree.AppendNode(MerkleHash.Create("abc"));
-            tree.AppendNode(MerkleHash.Create("def"));
-            tree.AppendNode(MerkleHash.Create("123"));
-            tree.AppendNode(MerkleHash.Create("456"));
+            tree.AppendLeaf(MerkleHash.Create("abc"));
+            tree.AppendLeaf(MerkleHash.Create("def"));
+            tree.AppendLeaf(MerkleHash.Create("123"));
+            tree.AppendLeaf(MerkleHash.Create("456"));
             tree.BuildTree();
             Assert.IsNotNull(tree.RootNode);
         }
 
         [TestMethod]
-        public void TestCreateUnbalancedTree()
+        public void CreateUnbalancedTreeTest()
         {
             MerkleTree tree = new MerkleTree();
-            tree.AppendNode(MerkleHash.Create("abc"));
-            tree.AppendNode(MerkleHash.Create("def"));
-            tree.AppendNode(MerkleHash.Create("123"));
+            tree.AppendLeaf(MerkleHash.Create("abc"));
+            tree.AppendLeaf(MerkleHash.Create("def"));
+            tree.AppendLeaf(MerkleHash.Create("123"));
             tree.BuildTree();
             Assert.IsNotNull(tree.RootNode);
+        }
+
+        [TestMethod]
+        public void AuditTest()
+        {
+            // Build a tree, and given the root node and a leaf hash, verify that the we can reconstruct the root hash.
+            MerkleTree tree = new MerkleTree();
+            MerkleHash l1 = MerkleHash.Create("abc");
+            MerkleHash l2 = MerkleHash.Create("def");
+            MerkleHash l3 = MerkleHash.Create("123");
+            MerkleHash l4 = MerkleHash.Create("456");
+            tree.AppendLeaves(new MerkleHash[] { l1, l2, l3, l4 });
+            MerkleHash rootHash = tree.BuildTree();
+
+            List<MerkleAuditHash> auditTrail = tree.Audit(l1);
+            Assert.IsTrue(MerkleTree.VerifyAudit(rootHash, l1, auditTrail));
+
+            auditTrail = tree.Audit(l2);
+            Assert.IsTrue(MerkleTree.VerifyAudit(rootHash, l2, auditTrail));
+
+            auditTrail = tree.Audit(l3);
+            Assert.IsTrue(MerkleTree.VerifyAudit(rootHash, l3, auditTrail));
+
+            auditTrail = tree.Audit(l4);
+            Assert.IsTrue(MerkleTree.VerifyAudit(rootHash, l4, auditTrail));
         }
 
         private MerkleNode CreateParentNode(string leftData, string rightData)

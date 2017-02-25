@@ -1,13 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Clifton.Blockchain
 {
+    public static class ExtensionMethods
+    {
+        public static void ForEach<T>(this IEnumerable<T> src, Action<T> action)
+        {
+            foreach (T item in src) action(item);
+        }
+    }
+
     public class MerkleTree
     {
         public MerkleNode RootNode { get; protected set; }
 
         protected List<MerkleNode> nodes;
+        protected List<MerkleNode> rootNodes;
+        protected List<MerkleNode> leaves;
 
         public static void Contract(Func<bool> action, string msg)
         {
@@ -20,16 +31,90 @@ namespace Clifton.Blockchain
         public MerkleTree()
         {
             nodes = new List<MerkleNode>();
+            rootNodes = new List<MerkleNode>();
+            leaves = new List<MerkleNode>();
         }
 
-        public void AppendNode(MerkleHash hash)
+        public void AppendLeaf(MerkleHash hash)
         {
-            nodes.Add(new MerkleNode(hash));
+            var node = new MerkleNode(hash);
+            nodes.Add(node);
+            leaves.Add(node);
         }
 
-        public void BuildTree()
+        public void AppendLeaves(MerkleHash[] hashes)
         {
-            BuildTree(nodes);
+            hashes.ForEach(h => AppendLeaf(h));
+        }
+
+        /// <summary>
+        /// Builds the tree for leaves and returns the root node.
+        /// </summary>
+        public MerkleHash BuildTree()
+        {
+            BuildTree(leaves);
+
+            return RootNode.Hash;
+        }
+
+        public void RegisterRoot(MerkleNode node)
+        {
+            Contract(() => node.Parent == null, "Node is not a root node.");
+            rootNodes.Add(node);
+        }
+
+        /// <summary>
+        /// Returns the audit trail hashes to reconstruct the root hash.
+        /// </summary>
+        /// <param name="leafHash">The leaf hash we want to verify exists in the tree.</param>
+        /// <returns>The audit trail of hashes needed to create the root, or an empty list if the leaf hash doesn't exist.</returns>
+        public List<MerkleAuditHash> Audit(MerkleHash leafHash)
+        {
+            List<MerkleAuditHash> auditTrail = new List<MerkleAuditHash>();
+
+            var leafNode = FindLeaf(leafHash);
+
+            if (leafNode != null)
+            {
+                Contract(() => leafNode.Parent != null, "Expected leaf to have a parent.");
+                var parent = leafNode.Parent;
+                BuildAuditTrail(auditTrail, parent, leafNode);
+            }
+
+            return auditTrail;
+        }
+
+        public static bool VerifyAudit(MerkleHash rootHash, MerkleHash leafHash, List<MerkleAuditHash> auditTrail)
+        {
+            MerkleHash testHash = leafHash;
+
+            // TODO: Inefficient - compute hashes directly.
+            foreach (MerkleAuditHash auditHash in auditTrail)
+            {
+                testHash = auditHash.Direction == MerkleAuditHash.Branch.Left ?
+                    MerkleHash.Create(testHash.Value.Concat(auditHash.Hash.Value).ToArray()) :
+                    MerkleHash.Create(auditHash.Hash.Value.Concat(testHash.Value).ToArray());
+            }
+
+            return rootHash == testHash;
+        }
+
+        protected void BuildAuditTrail(List<MerkleAuditHash> auditTrail, MerkleNode parent, MerkleNode child)
+        {
+            if (parent != null)
+            {
+                Contract(() => child.Parent == parent, "Parent of child is not expected parent.");
+                var nextChild = parent.LeftNode == child ? parent.RightNode : parent.LeftNode;
+                var direction = parent.LeftNode == child ? MerkleAuditHash.Branch.Left : MerkleAuditHash.Branch.Right;
+                auditTrail.Add(new MerkleAuditHash(nextChild.Hash, direction));
+                BuildAuditTrail(auditTrail, child.Parent.Parent, child.Parent);
+            }
+        }
+
+        protected MerkleNode FindLeaf(MerkleHash leafHash)
+        {
+            // TODO: We can improve the search for the leaf hash by maintaining a sorted list of leaf hashes.
+            return leaves.SingleOrDefault(l => l.Hash == leafHash);
         }
 
         /// <summary>
@@ -49,6 +134,7 @@ namespace Clifton.Blockchain
                 for (int i = 0; i < nodes.Count; i += 2)
                 {
                     MerkleNode right = (i + 1 < nodes.Count) ? nodes[i + 1] : null;
+                    // Constructing the MerkleNode resolves the right node being null.
                     MerkleNode parent = new MerkleNode(nodes[i], right);
                     parents.Add(parent);
                 }

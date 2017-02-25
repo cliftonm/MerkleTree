@@ -22,6 +22,11 @@ namespace Clifton.Blockchain
             Hash = hash;
         }
 
+        public override string ToString()
+        {
+            return Hash.ToString();
+        }
+
         /// <summary>
         /// Constructor for a parent node.
         /// </summary>
@@ -103,7 +108,6 @@ namespace Clifton.Blockchain
 
         protected void ComputeHash()
         {
-            SHA256 sha256 = SHA256Managed.Create();
             MerkleHash rightHash = RightNode == null ? LeftNode.Hash : RightNode.Hash;
             ComputeHash(LeftNode.Hash.Value.Concat(rightHash.Value).ToArray());
             Parent?.ComputeHash();      // Recurse, because out hash has changed.

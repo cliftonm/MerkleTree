@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -23,6 +24,32 @@ namespace Clifton.Blockchain
         public static MerkleHash Create(string buffer)
         {
             return Create(Encoding.UTF8.GetBytes(buffer));
+        }
+
+        public static bool operator ==(MerkleHash h1, MerkleHash h2)
+        {
+            return h1.Equals(h2);
+        }
+
+        public static bool operator !=(MerkleHash h1, MerkleHash h2)
+        {
+            return !h1.Equals(h2);
+        }
+
+        public override int GetHashCode()
+        {
+            return base.GetHashCode();
+        }
+
+        public override bool Equals(object obj)
+        {
+            MerkleTree.Contract(() => obj is MerkleHash, "rvalue is not a MerkleHash");
+            return Equals((MerkleHash)obj);
+        }
+
+        public override string ToString()
+        {
+            return BitConverter.ToString(Value).Replace("-", "");
         }
 
         /// <summary>
