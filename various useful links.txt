@@ -1,0 +1,118 @@
+https://chrispacia.wordpress.com/2013/09/02/bitcoin-mining-explained-like-youre-five-part-1-incentives/
+
+https://chrispacia.wordpress.com/2013/09/02/bitcoin-mining-explained-like-youre-five-part-2-mechanics/
+
+(part 3)
+https://chrispacia.wordpress.com/2013/09/07/bitcoin-cryptography-digital-signatures-explained/
+
+https://chrispacia.wordpress.com/2013/09/29/bitcoin-explained-like-youre-five-part-4-securing-your-wallet/
+
+https://chrispacia.wordpress.com/2014/02/08/bitcoin-explained-like-youre-five-part-5-macroeconomics/
+
+https://chrispacia.wordpress.com/2013/09/07/bitcoin-cryptography-digital-signatures-explained/
+
+Mastering Bitcoin:
+http://chimera.labs.oreilly.com/books/1234000001802
+The Blockchain:
+http://chimera.labs.oreilly.com/books/1234000001802/ch07.html
+
+
+Mastering Bitcoin
+http://chimera.labs.oreilly.com/books/1234000001802
+
+Holochain:
+http://ceptr.org/projects/holochain
+https://github.com/metacurrency/holochain
+
+Merkle Trees:
+
+Inserting / updating:
+http://crypto.stackexchange.com/questions/22669/merkle-hash-tree-updates
+http://bitcoin.stackexchange.com/questions/51423/how-do-you-create-a-merkle-tree-that-lets-you-insert-and-delete-elements-without/51424
+
+Verifying transaction:
+
+http://bitcoin.stackexchange.com/questions/10479/what-is-the-merkle-root
+
+
+http://stackoverflow.com/questions/5486304/explain-merkle-trees-for-use-in-eventual-consistency
+
+Merkle trees limit the amount of data transferred when synchronizing. The general assumptions are:
+
+1. Network I/O is more expensive than local I/O + computing the hashes.
+2. Transferring the entire sorted key space is more expensive than progressively limiting the comparison over several steps.
+3. The key spaces have fewer discrepancies than similarities.
+
+A Merkle Tree exchange would look like this:
+
+1. Start with the root of the tree (a list of one hash value).
+2. The origin sends the list of hashes at the current level.
+3. The destination diffs the list of hashes against its own and then requests subtrees that are different. If there are no differences, the request can terminate.
+4. Repeat steps 2 and 3 until leaf nodes are reached.
+5. The origin sends the values of the keys in the resulting set.
+
+In the typical case, the complexity of synchronizing the key spaces will be log(N). Yes, at the extreme, where there are no keys in common, the operation will be equivalent to sending the entire sorted list of hashes, O(N). 
+
+One could amortize the expense of building Merkle trees by building them dynamically as writes come in and keeping the serialized form on disk.
+
+Transactions and signing:
+
+https://bitcoin.org/en/developer-guide#transactions
+
+Merkle root is not used to verify the integrity of transactions in block
+
+Ethereum
+
+https://blog.ethereum.org/2015/11/15/merkling-in-ethereum/
+
+Merkle Proof:
+
+A Merkle proof consists of a chunk, the root hash of the tree, and the “branch” consisting of all of the hashes going up along the path from the chunk to the root. Someone reading the proof can verify that the hashing, at least for that branch, is consistent going all the way up the tree, and therefore that the given chunk actually is at that position in the tree. The application is simple: suppose that there is a large database, and that the entire contents of the database are stored in a Merkle tree where the root of the Merkle tree is publicly known and trusted (eg. it was digitally signed by enough trusted parties, or there is a lot of proof of work on it). Then, a user who wants to do a key-value lookup on the database (eg. “tell me the object in position 85273”) can ask for a Merkle proof, and upon receiving the proof verify that it is correct, and therefore that the value received actually is at position 85273 in the database with that particular root. It allows a mechanism for authenticating a small amount of data, like a hash, to be extended to also authenticate large databases of potentially unbounded size.
+
+---------
+
+https://www.quora.com/Cryptography-How-does-a-Merkle-proof-actually-work
+
+A Merkle tree is just an efficient way to prove that something is in a set, without having to store the set. Each non leaf node of a Merkle tree is just the hash of the concatenation of it's children. Each of the leaves are the set we want to prove membership for. In a sense, the root of the Merkle tree is a digest of all of the elements in the data set. Say person A contains the root node of the Merkle tree for set S, and person B wants to convince person A that element E is in S. To do this, person B only has to provide person A with the siblings of all of the elements in the tree in the path from E to the root node. This is only log(n) nodes. So B only has to provide only log(n) pieces of data, and person A only has to store the root node. With this provided information, person A can recompute the root node of the tree, and check to make sure that it matches the one that he knows is correct. If the hash function is collision resistant, then he can be sure that E is in S.
+
+----------
+
+instead of downloading every transaction and every block, a “light client” can only download the chain of block headers, 80-byte chunks of data for each block that contain only five things:
+
+A hash of the previous header
+A timestamp
+A mining difficulty value
+A proof of work nonce
+A root hash for the Merkle tree containing the transactions for that block.
+
+If the light client wants to determine the status of a transaction, it can simply ask for a Merkle proof showing that a particular transaction is in one of the Merkle trees whose root is in a block header for the main chain.
+
+Consistency Proof and Audit Proof
+
+https://www.certificate-transparency.org/log-proofs-work
+
+Non-membership proofs:
+
+http://crypto.stackexchange.com/questions/31914/proof-of-non-membership-on-a-merkle-tree
+http://www.links.org/files/RevocationTransparency.pdf
+
+zero knowledge sets:
+
+https://people.csail.mit.edu/silvio/Selected%20Scientific%20Papers/Zero%20Knowledge/Zero-Knowledge_Sets.pdf
+
+----------
+
+Scripts:
+
+http://chimera.labs.oreilly.com/books/1234000001802/ch05.html#tx_script
+
+----------
+
+Implementations (very helpful)
+
+https://github.com/NebulousLabs/merkletree
+
+pycoin:
+
+https://github.com/richardkiss/pycoin
+
