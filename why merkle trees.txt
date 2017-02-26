@@ -1,0 +1,42 @@
+Thoughts:
+
+As the "client", you're downloading a large file, say 10GB, spread across peers in chuncks of 4096 bytes.
+
+You need a trusted authority server to tell you whether each block is valid.
+
+From the server, you can be given the root hash and, as each block comes in, you start
+filling in the Merkle tree yourself.  
+
+However, you'll need all the data downloaded before you can complete the tree to verify the root.
+
+Instead, you can ask the server to send you the path of a hashed chunk (the leaf) to the root hash and verify it yourself.  This enables you to verify each chunk and if it is faulty, request it from somewhere else, simultaneously while you are downloading other chunks.  Furthermore, you're not maintaining all the hashes of the chunks and building the entire Merkle tree yourself.  So it's faster for verifying a chunk, and it's less memory on your part to hold the entire Merkle tree.
+
+The server (as trusted authority) doesn't hold the data, but it has to have the Merkle tree, including leaf hashes.
+
+Q1: Why not just ask the server if the leaf exists in tree with the specific root?
+Q2: Why should the server even bother with storing a Merkle tree of the leaf hashes?  (see answer to Q4 as well)
+
+A1: You could do that, but the SHA256 hash is only 32 bytes, and while this represents a huge number of unique hashes (2^256), 1.15*10^77, hashing node pair hashes as we walk up the tree strongly validates that the hash under question belongs to the correct tree.
+
+A2: Data synchronization:
+
+Let's say you have a large dataset divided into small chuncks.  First, you may not be maintaining the entire dataset, but only the portion you are responsible for.  If a change occurs in that chunk, you can recalculate the root hash knowing only the left-right branches to the root.
+
+The side-effect to this is that you also only need to maintain the left-right branches for your chunks, rather than the entire Merkle tree (including all the leaf hashes of chunks that you don't know or care about.)
+
+To synchronize, another user asks you to verify your root hash against their root hash.  If different, the left/right child hashes are requested, and the process iterates the mismatches until the chunks on your end that have changed are identified.  Now you only send your changed chunk to the other user, and you are both synchronized again.
+
+Q3: What happens if more than one user modifies the same chunk (based on the idea that in a distributed system, you want to replicate the data across many peers for resiliency.)
+
+A1: Only one peer may have the authority to change the data
+A2: Hashes can be time stamped, and you accept only the most recent change, discarding anything else
+A3: Differences are merged (either automatically or requiring manual intervention.)
+A4: You accept only the oldest change, and discard anything more recent
+A5: Technically, a chunk should never be changed.  If a change is required, this should be logged as a new transaction so that there is an auditable trail of changes (not the same think as a Merkle audit).  Given that, only specified authorities should be allowed to modify a transaction.
+A6: Some sort of blocking mechanism might be used to prevent data from being modified simultaneously.  For example, you could be given a "change key" and when you submit the change, if your change key doesn't match the current change key, your change is rejected, requiring you to syncrhonize your data, acquire a new change key, and submit your changes again.
+A7: The salient point to this is that, if the chunk sizes are small, the likelihood that your change will collide with someone else's is small.
+
+Q4: Why should the server send you the hash audit trail of to verify a chunk, rather than just sending you a "yes/no" response?
+
+A: This is your way of verifying that the server hasn't been compromised -- if it simply said "yes", how would you know you can trust it?  By sending you the left-right hashes, the server is telling you "here is how I verified your request."  A server that is trying to get you to believe your chunk has is valid cannot send you "any" audit trail hash because that would give a different root hash.
+

@@ -13,6 +13,7 @@ namespace MerkleTests
         [TestMethod]
         public void HashesAreSameTest()
         {
+            // Silly test.
             MerkleHash h1 = MerkleHash.Create("abc");
             MerkleHash h2 = MerkleHash.Create("abc");
             Assert.IsTrue(h1 == h2);
@@ -212,6 +213,7 @@ namespace MerkleTests
 
             // These tests verify that order has been preserved and that intermediate hashes have not been changed.
             // The first 4 leaves should give us the same rootHash as the original tree.
+            // We know that rootHash is associated with the first 4 leaves.
             Assert.IsTrue(tree.ConsistencyCheck(rootHash, 4));
 
             // Now append two more certificates, creating l, which create n and updates the main tree root.
@@ -222,6 +224,7 @@ namespace MerkleTests
 
             // The first 6 leaves should give us the same rootHash as the root hash we got with after the first append of two leaves (rootHashAfterAddTree) 
             // *after* we appended the next (and last) 2 leaves.
+            // We know that rootHashAfterAddTree is associated with the first 6 leaves.
             Assert.IsTrue(tree.ConsistencyCheck(rootHashAfterAddTree, 6));
         }
 
