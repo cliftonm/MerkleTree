@@ -13,7 +13,6 @@ namespace MerkleTests
         [TestMethod]
         public void HashesAreSameTest()
         {
-            // Silly test.
             MerkleHash h1 = MerkleHash.Create("abc");
             MerkleHash h2 = MerkleHash.Create("abc");
             Assert.IsTrue(h1 == h2);

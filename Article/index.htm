@@ -1,0 +1,151 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Language" content="en-us">
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>Understanding Merkle Trees</title>
+</head>
+
+<body>
+
+<p>Understanding Merkle Trees</p>
+<p>Why use them, who uses them, and how to use them</p>
+<h2>Introduction</h2>
+<p>In 1979, Ralph Merkle<sup>1</sup> patented<sup>3</sup> the concept of hash 
+trees, or better known as a Merkle tree (the patent expired in 
+2002.)&nbsp; In summary: <i>&quot;The invention comprises a method of providing a 
+digital signature for purposes of authentication of a message, which utilizes an 
+authentication tree function of a one-way function of a secret number.&quot;</i>&nbsp; 
+</p>
+<p>Or, if you prefer wikipedia's definition: &quot;<i>In cryptography and computer 
+science, a hash tree or Merkle tree is a tree in which every non-leaf node is 
+labeled with the hash of the labels or values (in case of leaves) of its child 
+nodes. Hash trees allow efficient and secure verification of the contents of 
+large data structures. Hash trees are a generalization of hash lists and hash 
+chains.</i>&quot;<sup>2</sup></p>
+<h3>Terminology in This Article</h3>
+<p>I'll attempt to use a consistent terminology throughout this article, except 
+where directly quoting some reference material.</p>
+<p><u>Record</u> - a boring word that describes a packet of data whose hash 
+corresponds to a &quot;leaf&quot; in a Merkle tree.&nbsp; When reading about Merkle trees, 
+you'll see other words like &quot;transaction&quot; or &quot;certificate&quot; depending on the 
+context. </p>
+<p><u>Block</u> - borrowing from bitcoin, I'm going to use the term &quot;block&quot; to 
+mean <i>all the permanent records</i> that&nbsp; representing the leaves of the 
+Merkle tree.&nbsp; To quote bitcoin:&nbsp; &quot;Transaction data is permanently 
+recorded in files called blocks. They can be thought of as the individual pages 
+of a city recorder's recordbook (where changes to title to real estate are 
+recorded) or a stock transaction ledger.&quot;<sup>8</sup>&nbsp; In other words: 
+&quot;records are permanently recorded in files called blocks.&quot;</p>
+<p><u>Log</u> - synonymous for the Merkle tree, a log is the hash tree 
+constructed from the hashed records.&nbsp; In addition to the log being 
+represented as a hash tree, the log has a specific property: new entries are 
+always appended as a new leaf (or leaves) to the last leaf in the tree.&nbsp; 
+Furthermore, for transactional systems (like currencies), once a record is 
+&quot;logged&quot;, it cannot be changed--instead, changes to the transaction are 
+represented as new record entries in the log, providing a complete audit trail 
+of a transaction.&nbsp; Conversely, a distributed datastore (like a NoSQL 
+database) where a record is allowed to change will update the hash of the record 
+and thus the entire tree.&nbsp; In this scenario, a Merkle tree is used to 
+quickly and efficiently identify the changed record so that nodes in the 
+distributed system can be synchronized.</p>
+<h2>Why Merkle Trees?</h2>
+<p>Merkle trees (and variations) are used by Bitcoin<sup>4</sup>, Ethereum<sup>6</sup>, Apache 
+Cassandra<sup>5</sup>, and 
+other systems to provide:</p>
+<ul>
+	<li>consistency verification</li>
+	<li>data verification</li>
+	<li>data synchronization</li>
+</ul>
+<p>What do these terms mean?</p>
+<h3>Consistency Verification</h3>
+<p>This is known as a &quot;consistency proof&quot; because it lets you verify that any 
+two versions of a log are consistent:</p>
+<ol>
+	<li>the later version includes everything in the earlier version</li>
+	<li>...in the same order</li>
+	<li>...and all new records come after the records in the older version<sup>7</sup></li>
+</ol>
+<p>&quot;If you can prove that a log is consistent it means that:</p>
+<ul>
+	<li>no certificates [records] have 
+been back-dated and inserted into the log</li>
+	<li>no certificates have been modified in 
+the log,</li>
+	<li>and the log has never been branched or forked.&quot;<sup>7</sup></li>
+</ul>
+<p>A consistency proof is therefore important for verifying that your log has 
+not been corrupted.&nbsp; &quot;Monitors and auditors regularly use consistency 
+proofs to verify that logs are behaving properly.&quot;<sup>7</sup></p>
+<h3>Data Verification</h3>
+<p>This is known as an &quot;audit proof&quot; because it lets you verify that a specific 
+record has been included in the log.&nbsp; As with the consistency verification, 
+the server maintaining the log provides the client with a proof that the record 
+exists in the log.&nbsp; &quot;Anyone can request a Merkle audit proof from a log and 
+verify that a certificate [record] is in the log. Auditors routinely send these 
+types of requests to logs so they can verify certificates for TLS clients. If a 
+Merkle audit proof fails to produce a root hash that matches the Merkle tree 
+hash, it means the certificate is not in the log.&quot;<sup>7</sup> (More on what a 
+root has is and how an audit proof works later on.)&nbsp; </p>
+<p><img border="0" src="key-small.png" width="94" height="33"></p>
+<p>But there's another reason for sending the proof to the client: it proves 
+that the server itself is not inventing a positive answer, but is instead 
+proving to you, the client, that it knows what it's talking about.&nbsp; Faking 
+a proof is computationally impossible.&nbsp;&nbsp; </p>
+<h3>Data Synchronization</h3>
+<p>Merkle trees are useful in synchronizing data across a distributed data store 
+because it allows each node in the distributed system to quickly and efficiently 
+identify records that have changed without having to send all the data to make 
+the comparison.&nbsp; Instead, once a particular leaf in the tree is identified 
+as having been changed, only the record that is associated with that specific 
+leaf is sent over the network.&nbsp; Note that Merkle trees do not directly 
+provide mechanisms for resolving collisions and synchronizing multiple writers 
+to the same record.&nbsp; We'll demonstrate how this works later on.</p>
+<h3>Proof is Critical</h3>
+<p><img border="0" src="key-small.png" width="94" height="33"></p>
+<p>Critical to the concept of a consistency proof and an audit proof is that 
+there actually is a proof that the client can verify on its own.&nbsp; This 
+means that when the client queries a server (ideally a trusted authority) to 
+validate consistency or the existence of a transaction, the server doesn't just 
+respond with a &quot;yes&quot; or &quot;no&quot; answer, but, in the case of a &quot;yes&quot;, sends you back<i>
+a proof</i> that the client can verify.&nbsp; The proof is based on the server's 
+knowledge of the Merkle tree, which cannot be duplicated by someone trying to 
+get the client to believe that their data is valid.</p>
+<p>In a distributed system, each node maintains the Merkle tree for its data, 
+and during the synchronization process, any node indicating that a record has 
+changed ends up implicitly proving itself to the other nodes that it is a valid 
+node.&nbsp; In other words, a node cannot jump onto the network and say &quot;I have 
+a new record&quot; or &quot;I have a record to replace this other record&quot; because it is 
+lacking the information necessary to prove itself to the other nodes.</p>
+<h2>What is a Merkle Tree?</h2>
+<p>A Merkle tree is typically a binary tree in which each leaf represents the 
+hashed value of the record associated with the leaf.&nbsp; The branches are the 
+hash of the concatenated hashes of the two children.&nbsp; This process is of 
+re-hashing the concatenation of the child nodes to create the parent node is 
+performed until the top of the tree is reached, called the &quot;root hash.&quot;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<h2>References</h2>
+<p><sup>1</sup> - <a href="https://en.wikipedia.org/wiki/Ralph_Merkle">Ralph 
+Merkle</a><br>
+<sup>2</sup> - <a href="https://en.wikipedia.org/wiki/Merkle_tree">Merkle Tree</a><br>
+<sup>3</sup> - <a href="https://www.google.com/patents/US4309569">Method of 
+providing digital signatures, patent US 4309569 A</a><br>
+<sup>4</sup> -
+<a href="https://bitcoin.org/en/developer-guide#block-chain-overview">Bitcoin 
+Developer Guide - Block Chain</a><br>
+<sup>5</sup> -
+<a href="http://distributeddatastore.blogspot.com/2013/07/cassandra-using-merkle-trees-to-detect.html">
+Cassandra's AntiEntropy service</a><br>
+<sup>6</sup> -
+<a href="https://blog.ethereum.org/2015/11/15/merkling-in-ethereum/">Merkling in 
+Ethereum</a><br>
+<sup>7</sup> - <a href="http://www.certificate-transparency.org/log-proofs-work">
+Consistency Proofs and Audit Proofs</a><br>
+<sup>8</sup> - <a href="https://en.bitcoin.it/wiki/Block">bitcoin block</a></p>
+<p>&nbsp;</p>
+
+</body>
+
+</html>
