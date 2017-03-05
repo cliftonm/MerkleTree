@@ -9,6 +9,8 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 
+using Clifton.Core.ExtensionMethods;
+
 namespace FlowSharpLib
 {
     public static class ExtensionMethods
@@ -187,6 +189,15 @@ namespace FlowSharpLib
             return options.Contains(item);
         }
 
+        public static void ForEachWithIndex<T>(this IEnumerable<T> collection, Action<int, T> action)
+        {
+            int n = 0;
+            collection.ForEach(t =>
+            {
+                action(n++, t);
+            });
+        }
+
         public static void ForEachReverse<T>(this IList<T> collection, Action<T> action)
         {
             for (int i = collection.Count - 1; i >= 0; i--)
@@ -202,6 +213,11 @@ namespace FlowSharpLib
             list[indexB] = tmp;
 
             return list;
+        }
+
+        public static string ToHtmlColor(this Color c, char prefix='#')
+        {
+            return prefix + c.R.ToString("X2") + c.G.ToString("X2") + c.B.ToString("X2");
         }
     }
 }

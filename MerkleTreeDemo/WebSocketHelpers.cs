@@ -1,4 +1,8 @@
-﻿using WebSocketSharp;
+﻿using System.Drawing;
+
+using WebSocketSharp;
+
+using FlowSharpLib;
 
 namespace MerkleTreeDemo
 {
@@ -13,6 +17,18 @@ namespace MerkleTreeDemo
         {
             Connect();
             ws.Send(string.Format("cmd=CmdDropShape&ShapeName={0}&X={1}&Y={2}&Text={3}", shapeName, x, y, text));
+        }
+        //FillColor=
+        public static void DropShape(string shapeName, Rectangle r, string text = "")
+        {
+            Connect();
+            ws.Send(string.Format("cmd=CmdDropShape&ShapeName={0}&X={1}&Y={2}&Width={3}&Height={4}&Text={5}", shapeName, r.X, r.Y, r.Width, r.Height, text));
+        }
+
+        public static void DropShape(string shapeName, Rectangle r, Color fillColor, string text = "")
+        {
+            Connect();
+            ws.Send(string.Format("cmd=CmdDropShape&ShapeName={0}&X={1}&Y={2}&Width={3}&Height={4}&Text={5}&FillColor={6}", shapeName, r.X, r.Y, r.Width, r.Height, text, fillColor.ToHtmlColor('!')));
         }
 
         public static void DropShape(string shapeName, int x, int y, int w, int h, string text = "")

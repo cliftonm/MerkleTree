@@ -6,6 +6,7 @@ using System.Windows.Forms;
 
 using FlowSharpLib;
 
+using Clifton.Core.ExtensionMethods;
 using Clifton.Blockchain;
 
 namespace MerkleTreeDemo
@@ -14,19 +15,25 @@ namespace MerkleTreeDemo
     {
         public const int LEAF_Y = 300;
         public const int V_OFFSET = 60;
-        public const int X_OFFSET = 40;
+        public const int X_OFFSET = 80;
+        public const int NODE_WIDTH = 75;
+        public const int NODE_HEIGHT = 30;
+        public const int NUM_LEAVES = 7;
+        public readonly Color LEAF_COLOR = Color.LightGreen;
+        public readonly Color NODE_COLOR = Color.LightBlue;
+        public readonly Color ROOT_COLOR = ControlPaint.LightLight(Color.Red);
 
         public Form1()
         {
             InitializeComponent();
-            Test();
+            MerkleTree tree = new MerkleTree();
+            DrawBasicTree(tree);
+            // DrawAuditProof("2", tree);
         }
 
-        public void Test()
+        public void DrawBasicTree(MerkleTree tree)
         {
-            MerkleTree tree = new MerkleTree();
-
-            for (int i = 0; i < 20; i++)
+            for (int i = 0; i < NUM_LEAVES; i++)
             {
                 tree.AppendLeaf(MerkleHash.Create(i.ToString()));
             }
@@ -37,12 +44,14 @@ namespace MerkleTreeDemo
 
             // Get all leaves
             List<MerkleNode> leaves = new List<MerkleNode>();
+            GetLeaves(rootNode, leaves);
+            leaves.ForEachWithIndex((idx, l) => l.Text = idx.ToString());
 
-            TraverseTree(rootNode, leaves);
             List<Rectangle> shapesLower = DrawLeaves(leaves);
 
-
             IEnumerable<MerkleNode> parents = leaves.Select(l => l.Parent).Distinct();
+            CreateParentTags(parents);
+
             int level = 1;
 
             while (parents.Count() > 0)
@@ -51,10 +60,28 @@ namespace MerkleTreeDemo
                 DrawConnectors(shapesLower, shapesUpper);
                 shapesLower = shapesUpper;
                 parents = parents.Select(p => p?.Parent).Where(p=>p != null).Distinct();
+                CreateParentTags(parents);
             }
         }
 
-        protected void TraverseTree(MerkleNode node, List<MerkleNode> leaves)
+        protected void DrawAuditProof(string text, MerkleTree tree)
+        {
+            MerkleNode node = tree.Single(t => t.Text == text);
+            List<MerkleAuditHash> proof = tree.Audit(node.Hash);
+
+            foreach (var auditHash in proof)
+            {
+                MerkleNode n = tree.Single(t => t.Hash == auditHash.Hash);
+                Highlight(n);
+            }
+        }
+
+        protected void CreateParentTags(IEnumerable<MerkleNode> parents)
+        {
+            parents.ForEach(p => p.Text = p.LeftNode.Text + p?.RightNode?.Text ?? "-");
+        }
+
+        protected void GetLeaves(MerkleNode node, List<MerkleNode> leaves)
         {
             if (node.LeftNode == null && node.RightNode == null)
             {
@@ -63,12 +90,12 @@ namespace MerkleTreeDemo
             else
             {
                 // Left node will always exist.
-                TraverseTree(node.LeftNode, leaves);
+                GetLeaves(node.LeftNode, leaves);
 
                 // Right node may not exist and end of leaves.
                 if (node.RightNode != null)
                 {
-                    TraverseTree(node.RightNode, leaves);
+                    GetLeaves(node.RightNode, leaves);
                 }
             }
         }
@@ -78,10 +105,12 @@ namespace MerkleTreeDemo
             List<Rectangle> rects = new List<Rectangle>();
             int i = 0;
 
-            foreach (var leave in leaves)
+            foreach (var leaf in leaves)
             {
-                WebSocketHelpers.DropShape("Box", i * X_OFFSET, LEAF_Y, 30, 30, i.ToString());
-                rects.Add(new Rectangle(i * X_OFFSET, LEAF_Y, 30, 30));
+                var leafRect = new Rectangle(i * X_OFFSET, LEAF_Y, NODE_WIDTH, NODE_HEIGHT);
+                WebSocketHelpers.DropShape("Box", leafRect, LEAF_COLOR, leaf.Text);
+                rects.Add(leafRect);
+                leaf.Tag = leafRect;
                 ++i;
             }
 
@@ -93,19 +122,16 @@ namespace MerkleTreeDemo
             List<Rectangle> rects = new List<Rectangle>();
             int i = 0;
             int l0 = level - 1;
+            int indent = ((int)Math.Pow(2, l0) - 1) * X_OFFSET + X_OFFSET / 2;
+            int spacing = X_OFFSET * (int)Math.Pow(2, level);
+            Color nodeColor = parents.Count() == 1 ? ROOT_COLOR : NODE_COLOR;
 
             foreach (var node in parents)
-            {               
-                //                                       an = 2^n-1
-                // 1 : .5            0 : .5           0: 0
-                // 2 : 1.5           1 : 1.5          1: 1
-                // 3 : 3.5           2 : 3.5          2: 3
-                // 4 : 7.5           3 : 7.5          3: 7
-                // deltas are 1, 2, 4, 8,....
-                int xstart = ((int)Math.Pow(2, l0) - 1) * X_OFFSET + X_OFFSET / 2;
-                WebSocketHelpers.DropShape("Box", xstart + i * X_OFFSET * (int)Math.Pow(2, level), LEAF_Y - (V_OFFSET * level), 30, 30, i.ToString());
-                rects.Add(new Rectangle(xstart + i * X_OFFSET * (int)Math.Pow(2, level), LEAF_Y - (V_OFFSET * level), 30, 30));
-
+            {
+                var nodeRect = new Rectangle(indent + i * spacing, LEAF_Y - (V_OFFSET * level), NODE_WIDTH, NODE_HEIGHT);
+                WebSocketHelpers.DropShape("Box", nodeRect, nodeColor, node.Text);
+                rects.Add(nodeRect);
+                node.Tag = nodeRect;
                 ++i;
             }
 
@@ -127,6 +153,12 @@ namespace MerkleTreeDemo
                 n++;
                 n2 = n2 + ((n % 2) == 0 ? 1 : 0);
             }
+        }
+
+        protected void Highlight(MerkleNode node)
+        {
+            Rectangle r = (Rectangle)node.Tag;
+            WebSocketHelpers.DropShape("Box", r, Color.Yellow, node.Text);
         }
     }
 }

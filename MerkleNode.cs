@@ -1,10 +1,14 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 
 namespace Clifton.Blockchain
 {
     public class MerkleNode
     {
+        public string Text { get; set; }     // Useful for diagramming.
+        public object Tag { get; set; }      // Useful for diagramming.
+
         public MerkleHash Hash { get; protected set; }
         public MerkleNode LeftNode { get; protected set; }
         public MerkleNode RightNode { get; protected set; }
@@ -15,7 +19,7 @@ namespace Clifton.Blockchain
         }
 
         /// <summary>
-        /// Constructor for a base node, representing the lowest level of the tree.
+        /// Constructor for a base node (leaf), representing the lowest level of the tree.
         /// </summary>
         public MerkleNode(MerkleHash hash)
         {

@@ -118,13 +118,169 @@ changed ends up implicitly proving itself to the other nodes that it is a valid
 node.&nbsp; In other words, a node cannot jump onto the network and say &quot;I have 
 a new record&quot; or &quot;I have a record to replace this other record&quot; because it is 
 lacking the information necessary to prove itself to the other nodes.</p>
-<h2>What is a Merkle Tree?</h2>
+<h2>Merkle Trees in Action</h2>
 <p>A Merkle tree is typically a binary tree in which each leaf represents the 
-hashed value of the record associated with the leaf.&nbsp; The branches are the 
-hash of the concatenated hashes of the two children.&nbsp; This process is of 
+hashed value of the record associated with that leaf.&nbsp; The branches are the 
+hash of the concatenated hashes of the two children.&nbsp; This process of 
 re-hashing the concatenation of the child nodes to create the parent node is 
 performed until the top of the tree is reached, called the &quot;root hash.&quot;</p>
+<p><img border="0" src="tree1.png" width="796" height="226"></p>
+<p>The above diagram simulates the concatenation of the child hashes.</p>
+<h3>How Does Data Verification (Audit Proof) Work?</h3>
+<p>Let's say you are the owner of the record &quot;2&quot; in the above diagram.&nbsp; You 
+also have, from a trusted authority, the root hash, which in our simulation is 
+&quot;01234567&quot;.&nbsp; You ask the server to prove to you that your record &quot;2&quot; is in 
+the tree.&nbsp; What the server returns to you are the hashes &quot;3&quot;, &quot;01&quot;, &quot;4567&quot; 
+as illustrated here:</p>
+<p><img border="0" src="tree2.png" width="656" height="230"></p>
+<p>Using this information (including the right-left flags that are sent back 
+along with the hashes), the proof is that:</p>
+<ul>
+	<li>2 + 3 from which you compute 23</li>
+	<li>01 + 23 from which you compute 0123</li>
+	<li>0123 + 4567 from which you compute 01234567</li>
+</ul>
+<p>Since you know the root hash from your trusted authority, the proof validates 
+that &quot;2&quot; exists in the tree.&nbsp; Furthermore, the system from which you have 
+obtained the proof is proving to you that it is an &quot;authority&quot; because it is 
+able to provide valid hashes so that you can get from &quot;2&quot; to your known root 
+hash &quot;01234567.&quot;&nbsp; Any system pretending to validate your request would not 
+be able to provide you with the intermediate hashes since you're not giving the 
+system the root hash, you're just telling it to give you the proof - it can't 
+invent the proof because it doesn't know your root hash -- only you know that.</p>
+<p>In order to verify the proof, very little information about the tree is 
+revealed to you.&nbsp; Furthermore, the data packet that is needed for this 
+proof is very small, making it efficient to send over a network and to make the 
+proof computation.</p>
+<h3>How Does Consistency Verification (Consistency Proof) Work?</h3>
+<p>Section 2.1.3 of RFC 6962<sup>9</sup> provides some useful diagrams on how a 
+consistency proof works, but I found it confusing to figure out, so I'll try and 
+explain it a bit better here.&nbsp; Using their example (but my simulated hash 
+numbering), we'll start with 3 records:</p>
+<p>First three records are created:</p>
+<p><img border="0" src="r1.png" width="283" height="161"></p>
+<p>A fourth record is added at some point, resulting in this tree:</p>
+<p><img border="0" src="tree3.png" width="325" height="164"></p>
+<p>Two more records are added:</p>
+<p><img border="0" src="r2.png" width="531" height="224"></p>
+<p>And finally, one more record is added:</p>
+<p><img border="0" src="r3.png" width="606" height="219"></p>
+<p>Now, we want to be able to verify the four trees and their hashes:</p>
+<ol>
+	<li>The first tree has a root hash of &quot;012&quot;</li>
+	<li>When the second tree was added, the root hash became &quot;0123&quot;</li>
+	<li>When the third tree was added, the root hash changed to &quot;012345&quot;</li>
+	<li>When the fourth tree was added, the root hash changed to &quot;0123456&quot;</li>
+</ol>
+<p>What do we need to do to verify that the first tree, with its 3 leaves, still 
+exists in the new tree?</p>
+<ol>
+	<li>First, we take the first pair of leaves (&quot;0&quot; and &quot;1&quot; and compute the 
+	hash for that pair, which is &quot;01&quot;.</li>
+	<li>Because the number of leaves is odd, we have to take only the hash of 
+	&quot;2&quot; and combine it with &quot;01&quot;, giving us the hash for &quot;012&quot;.<ol>
+		<li>This verifies the original hash.</li>
+		<li>However, to continue up the tree, we need the right sibling (this is 
+		critical phrasing!).</li>
+		<li><img border="0" src="important.png" width="38" height="32">&nbsp; 
+		This hash cannot be computed without involving the hash of the leaf 
+		(&quot;3&quot;) which we pair with &quot;2&quot; to compute the hash for &quot;23&quot;.</li>
+	</ol>
+	</li>
+	<li>Knowing now the hashes for the first 4 records &quot;01&quot; and &quot;23&quot;, we can 
+	compute their hash &quot;0123&quot;.</li>
+	<li>We then note the sibling node with its hash &quot;456&quot; and combine that to 
+	arrive at the current root hash &quot;0123456&quot;.</li>
+</ol>
+<p>The second tree added only one node, and so the computation is simpler 
+because the number of nodes is even:</p>
+<ol>
+	<li>We locate in the tree the hash of the root when the second tree was 
+	added, which is &quot;0123&quot;.</li>
+	<li>We now continue (using the sibling of &quot;0123&quot;) as if we were doing an 
+	audit proof and again arrive at the root hash &quot;0123456&quot;.</li>
+</ol>
+<p>The third tree added two nodes.&nbsp; </p>
+<ol>
+	<li>The hash &quot;012345&quot; no longer directly exists as a node in the tree.&nbsp; 
+	</li>
+	<li>Because we know this involves 6 nodes, then way the tree is balanced is:<ol>
+		<li>The hash &quot;0123&quot; and the hash &quot;45&quot;...</li>
+		<li>which we combine to create the hash for &quot;012345&quot;, verifying the root 
+		hash when the third tree was added.</li>
+	</ol>
+	</li>
+	<li>Because there is no fourth pair, we again need the right sibling hash 
+	(again, this is critical phrasing!) which we know to be &quot;6&quot;.<ol>
+		<li><img border="0" src="important.png" width="38" height="32">&nbsp; We 
+		also know that this is the end of the leaves, so there is no 
+		right-branch that can be added to balance this node.</li>
+	</ol>
+	</li>
+	<li>We take the left sibling whose has is &quot;45&quot; and combine it with the right 
+	sibling which is &quot;6&quot; and arrive at the hash for &quot;456&quot;.</li>
+	<li>We then take &quot;0123&quot; and &quot;456&quot; and arrive again at the root hash 
+	&quot;0123456&quot;.</li>
+</ol>
+<p>This is not a trivial algorithm and uses the following rules and information:</p>
+<ul>
+	<li>A consistency proof is always based on a computation involving (directly 
+	or indirectly) the 0<sup>th</sup> leaf (the first entry made in the tree).&nbsp; 
+	This is a requirement because you want to make sure that all the hashes of 
+	the data verify order and have not mutated.</li>
+	<li>However, by knowing the number of leaves that represented the 
+	intermediate root hash, the algorithm can quickly identify the specific node 
+	that consists of either:<ul>
+		<li>the matching hash (if the number of leaves is a power of 2).</li>
+		<li>the child pairs needed to reconstruct the intermediate root hash.</li>
+	</ul>
+	</li>
+	<li><img border="0" src="important.png" width="38" height="32">&nbsp; This 
+	implies that when a tree is added to the &quot;log&quot; (existing set of records), 
+	that the number of leaves now present in the tree is retained along with the 
+	root hash.</li>
+	<li>In many cases, where one particular system is solely responsible for 
+	appending trees, this is simple because the system of course knows how many 
+	leaves are in each tree it is adding.</li>
+	<li>In a distributed system, where there can be other participants appending 
+	trees (along with the added complexity of preventing simultaneous append 
+	operations) the participant adding the tree needs to be informed as to the 
+	number of leaves in the tree so that a consistency check can be performed 
+	later.&nbsp; </li>
+	<li>To avoid this extra knowledge, the maintainer of the full Merkle tree 
+	can utilize a dictionary mapping tree roots that were appended to leaf 
+	counts.&nbsp; This is probably a more secure way of managing the required 
+	information.</li>
+</ul>
 <p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>Consistency proofs apply to trees that are &quot;append only&quot;, like a log.&nbsp; 
+As a simplified example, let's say you own the data &quot;0&quot;, &quot;1&quot;, &quot;2&quot;, &quot;3&quot;, and you 
+want to verify that the tree still contains that data, even after you (or 
+others) have appended records to the tree.&nbsp; So you start with:</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>This would result in a tree like the one shown at the beginning of the 
+section &quot;Merkle Trees in Action.&quot;&nbsp; </p>
+<p>Now, you want to verify that your leaves &quot;0&quot;, &quot;1&quot;, &quot;2&quot;, and &quot;3&quot; are:</p>
+<ol>
+	<li>still in the tree</li>
+	<li>in the same order</li>
+	<li>and haven't somehow been modified </li>
+</ol>
+<p>When you created your tree, you knew that the root of your tree was &quot;0123&quot;, 
+and you've saved this information along with the hashes of the leaves of your 
+tree (you don't care about the intermediate data.)&nbsp; Now you can ask the 
+server, &quot;Prove to me that &quot;0123&quot; still exists in the tree unmodified.&nbsp; </p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<h2>Storage Analysis</h2>
+<p>Merkle trees present a memory/disk space efficient way to store the 
+information for validating records.&nbsp; The data required to validate a proof 
+is also very efficient.</p>
+<p>todo - fill in with some analysis.</p>
 <p>&nbsp;</p>
 <h2>References</h2>
 <p><sup>1</sup> - <a href="https://en.wikipedia.org/wiki/Ralph_Merkle">Ralph 
@@ -143,7 +299,9 @@ Cassandra's AntiEntropy service</a><br>
 Ethereum</a><br>
 <sup>7</sup> - <a href="http://www.certificate-transparency.org/log-proofs-work">
 Consistency Proofs and Audit Proofs</a><br>
-<sup>8</sup> - <a href="https://en.bitcoin.it/wiki/Block">bitcoin block</a></p>
+<sup>8</sup> - <a href="https://en.bitcoin.it/wiki/Block">bitcoin block</a><br>
+9 - <a href="https://tools.ietf.org/html/rfc6962">RFC6962 - Certificate 
+Transparency</a></p>
 <p>&nbsp;</p>
 
 </body>

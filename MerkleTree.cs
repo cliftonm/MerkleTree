@@ -1,23 +1,17 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
+using Clifton.Core.ExtensionMethods;
+
 namespace Clifton.Blockchain
 {
-    public static class ExtensionMethods
-    {
-        public static void ForEach<T>(this IEnumerable<T> src, Action<T> action)
-        {
-            foreach (T item in src) action(item);
-        }
-    }
-
-    public class MerkleTree
+    public class MerkleTree : IEnumerable<MerkleNode>
     {
         public MerkleNode RootNode { get; protected set; }
 
         protected List<MerkleNode> nodes;
-        protected List<MerkleNode> rootNodes;
         protected List<MerkleNode> leaves;
 
         public static void Contract(Func<bool> action, string msg)
@@ -31,8 +25,32 @@ namespace Clifton.Blockchain
         public MerkleTree()
         {
             nodes = new List<MerkleNode>();
-            rootNodes = new List<MerkleNode>();
             leaves = new List<MerkleNode>();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
+        public IEnumerator<MerkleNode> GetEnumerator()
+        {
+            foreach (var n in Iterate(RootNode)) yield return n;
+        }
+
+        protected IEnumerable<MerkleNode> Iterate(MerkleNode node)
+        {
+            yield return node;
+
+            if (node.LeftNode != null)
+            {
+                foreach (var n in Iterate(node.LeftNode)) yield return n;
+            }
+
+            if (node.RightNode != null)
+            {
+                foreach (var n in Iterate(node.RightNode)) yield return n;
+            }
         }
 
         public void AppendLeaf(MerkleHash hash)
@@ -83,11 +101,12 @@ namespace Clifton.Blockchain
             return RootNode.Hash;
         }
 
-        public void RegisterRoot(MerkleNode node)
-        {
-            Contract(() => node.Parent == null, "Node is not a root node.");
-            rootNodes.Add(node);
-        }
+        // Why would we need this?
+        //public void RegisterRoot(MerkleNode node)
+        //{
+        //    Contract(() => node.Parent == null, "Node is not a root node.");
+        //    rootNode = node;
+        //}
 
         /// <summary>
         /// Returns the audit trail hashes to reconstruct the root hash.
