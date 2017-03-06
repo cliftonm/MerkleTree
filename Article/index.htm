@@ -153,10 +153,14 @@ revealed to you.&nbsp; Furthermore, the data packet that is needed for this
 proof is very small, making it efficient to send over a network and to make the 
 proof computation.</p>
 <h3>How Does Consistency Verification (Consistency Proof) Work?</h3>
-<p>Section 2.1.3 of RFC 6962<sup>9</sup> provides some useful diagrams on how a 
-consistency proof works, but I found it confusing to figure out, so I'll try and 
-explain it a bit better here.&nbsp; Using their example (but my simulated hash 
-numbering), we'll start with 3 records:</p>
+<p>Consistency proofs apply to trees that are &quot;append only&quot;, like a log.&nbsp; 
+They are typically not used in systems where leaves are being updated because 
+this would require synchronizing old root hash values.&nbsp; It's doable, it's 
+just not something I would expect to see.&nbsp; Section 2.1.3 of RFC 6962<sup>9</sup> 
+provides some useful diagrams on how a consistency proof works, but I found it 
+confusing to figure out, so I'll try and explain it a bit better here.&nbsp; 
+Using their example (but my simulated hash numbering), we'll start with 3 
+records:</p>
 <p>First three records are created:</p>
 <p><img border="0" src="r1.png" width="283" height="161"></p>
 <p>A fourth record is added at some point, resulting in this tree:</p>
@@ -165,12 +169,15 @@ numbering), we'll start with 3 records:</p>
 <p><img border="0" src="r2.png" width="531" height="224"></p>
 <p>And finally, one more record is added:</p>
 <p><img border="0" src="r3.png" width="606" height="219"></p>
-<p>Now, we want to be able to verify the four trees and their hashes:</p>
+<h4>Consistency Proof Walkthrough</h4>
+<p>Now, we want to be able to verify the first three trees still exist and their 
+leaves are in the correct order.&nbsp; This is done by re-creating the hashes 
+for each sub-tree given the new tree (last figure above):</p>
 <ol>
-	<li>The first tree has a root hash of &quot;012&quot;</li>
-	<li>When the second tree was added, the root hash became &quot;0123&quot;</li>
-	<li>When the third tree was added, the root hash changed to &quot;012345&quot;</li>
-	<li>When the fourth tree was added, the root hash changed to &quot;0123456&quot;</li>
+	<li>The first tree has a root hash of &quot;012&quot;.</li>
+	<li>When the second tree was added, the root hash became &quot;0123&quot;.</li>
+	<li>When the third tree was added, the root hash changed to &quot;012345&quot;.</li>
+	<li>When the last tree was added, the root hash changed to &quot;0123456&quot;.</li>
 </ol>
 <p>What do we need to do to verify that the first tree, with its 3 leaves, still 
 exists in the new tree?</p>
@@ -192,15 +199,16 @@ exists in the new tree?</p>
 	<li>We then note the sibling node with its hash &quot;456&quot; and combine that to 
 	arrive at the current root hash &quot;0123456&quot;.</li>
 </ol>
-<p>The second tree added only one node, and so the computation is simpler 
-because the number of nodes is even:</p>
+<p>The second tree added only one node and so the computation is simpler because 
+the number of nodes is even:</p>
 <ol>
 	<li>We locate in the tree the hash of the root when the second tree was 
 	added, which is &quot;0123&quot;.</li>
 	<li>We now continue (using the sibling of &quot;0123&quot;) as if we were doing an 
 	audit proof and again arrive at the root hash &quot;0123456&quot;.</li>
 </ol>
-<p>The third tree added two nodes.&nbsp; </p>
+<p>The third tree added two nodes, and to verify the integrity of that tree in 
+the final tree state (with the fourth tree added) requires:</p>
 <ol>
 	<li>The hash &quot;012345&quot; no longer directly exists as a node in the tree.&nbsp; 
 	</li>
@@ -224,8 +232,9 @@ because the number of nodes is even:</p>
 </ol>
 <p>This is not a trivial algorithm and uses the following rules and information:</p>
 <ul>
-	<li>A consistency proof is always based on a computation involving (directly 
-	or indirectly) the 0<sup>th</sup> leaf (the first entry made in the tree).&nbsp; 
+	<li>A consistency proof is always based on a computation verifying the first
+	<i>m</i> leaves in the tree.&nbsp; When we add a tree to an existing tree,
+	<i>m</i> is the number of leaves after the trees have been combined.&nbsp; 
 	This is a requirement because you want to make sure that all the hashes of 
 	the data verify order and have not mutated.</li>
 	<li>However, by knowing the number of leaves that represented the 
@@ -237,8 +246,8 @@ because the number of nodes is even:</p>
 	</li>
 	<li><img border="0" src="important.png" width="38" height="32">&nbsp; This 
 	implies that when a tree is added to the &quot;log&quot; (existing set of records), 
-	that the number of leaves now present in the tree is retained along with the 
-	root hash.</li>
+	the number of leaves now present in the tree is retained along with the root 
+	hash.</li>
 	<li>In many cases, where one particular system is solely responsible for 
 	appending trees, this is simple because the system of course knows how many 
 	leaves are in each tree it is adding.</li>
@@ -252,28 +261,79 @@ because the number of nodes is even:</p>
 	counts.&nbsp; This is probably a more secure way of managing the required 
 	information.</li>
 </ul>
+<h4>Consistency Proof General Algorithm</h4>
+<p>You can read through the consistency proof in section 2.1.2 of RFC 6962<sup>9</sup>, 
+or you can just go with this:</p>
+<p><b>Rule 1</b>: Find the leftmost node of the tree from which we can start our 
+consistency proof.&nbsp; Usually, this will be a node representing a piece (the 
+left piece) of the hash needed to obtain the old root hash.</p>
+<p>Given <i>m</i>, the number of leaves in the master tree after a sub-tree was 
+added, take <i>n</i>=log<sub>2</sub>(<i>m</i>) to find the index of the node 
+representing at most<i> m</i> leaves.&nbsp; This index is the left-branch 
+traversal, starting from the leftmost leaf, of the tree.</p>
+<p>For example:</p>
+<p>3 leaves: log<sub>2</sub>(3) = 1.58 (we start at node &quot;01&quot;)<br>
+4 leaves: log<sub>2</sub>(4) = 2 (we start at node &quot;0123&quot;)<br>
+6 leaves: log<sub>2</sub>(6) = 2.58 (we start at node &quot;0123&quot;)</p>
+<p>This gives you the index (rounded down) of the node whose hash you start 
+with.&nbsp; By starting at the correct level, we know that the sub-tree starts 
+at this position or is a composite -- if there's a remainder of log<sub>2</sub>(<i>m</i>) 
+-- of the current node's hash and the hash of a sibling node.&nbsp; This diagram 
+should help:</p>
+<p><img border="0" src="r4.png" width="603" height="221"></p>
+<p>Also, set <i>k</i>, the number of leaves for this node (<u>nodes have to 
+retain their leaf count because the last leaf of a tree might be missing.</u>)</p>
+<p>Also set the initial sibling node (SN) to the sibling of the node acquired by 
+Rule 1, if it exists.</p>
+<p>if m-k == 0, proceed with rule 3.</p>
+<p>Three scenarios using the above diagram:</p>
+<p>m of 2: index = 1 (the &quot;01&quot; node) and it has 2 leaves, so we move on to rule 
+3.</p>
+<p>m of 4: index = 2 (the &quot;01234&quot; node), and it has 4 leaves, so we move on to 
+rule 3.</p>
+<p>m of 3: index = 1 (&quot;the &quot;01&quot; node) and it has 2 leaves, but m-k = 1, so we 
+move on to rule 2.</p>
+<p><b>Rule 2</b>:&nbsp; </p>
+<p>if m-k == # of SN's leaves, concatenate the hash of the sibling SN and exit 
+Rule 2, as this represents the hash of the old root.</p>
+<p>if m-k &lt; # of SN's leaves, set SN to SN's left child node and repeat Rule 2.</p>
+<p>In this manner, we always end of with the hashes from which we can 
+reconstruct the old root hash.</p>
+<p>A few scenarios:</p>
+<p><b>m = 3</b>.&nbsp; k=2 (the number of leaves under &quot;01&quot;), SN = &quot;23&quot;<br>
+SN's # of leaves is 2.&nbsp; m-k &lt; 2, so SN = left child of SN, which is &quot;2&quot;<br>
+SN's # of leaves is 1(well, it <u>is</u> a leaf)<br>
+m-k = SN's # of leaves, so we know to use the hash for &quot;01&quot; plus the hash for 
+&quot;2&quot; to construct the old root &quot;012&quot;.</p>
+<p><b>m = 4</b> is handled by rule 1</p>
+<p><b>m = 5</b>. k=4 (the number of leaves under &quot;0123&quot;).&nbsp; SN=&quot;456&quot;<br>
+SN's # of leaves is 3.<br>
+m-k &lt; SN's # of leaves, so SN = left child of SN, which is &quot;45&quot;<br>
+SN's # of leaves is now 2<br>
+m-k &lt; SN's # of leaves, so SN = left child of SN, which is &quot;4&quot;<br>
+SN's # of leaves is now 1 (it's a leaf)<br>
+m-k = SN's # of leaves, so we know to use the hash for &quot;0123&quot; plus the hash for 
+&quot;4&quot; to construct the old root &quot;01234&quot;.</p>
+<p>This is a good example of constructing a consistency tree for any number of 
+leaves starting from the first leaf, whether the old root was part of a tree 
+that was added to the master tree or not.&nbsp; However, this is not the typical 
+scenario.&nbsp; Moving along:</p>
+<p><b>m = 6</b>. k=4 (the number of leaves under &quot;0123&quot;).&nbsp; SN=&quot;456&quot;<br>
+SN's # of leaves is 3.<br>
+m-k &lt; SN's # of leaves, so SN = left child of SN, which is &quot;45&quot;<br>
+SN's # of leaves is now 2.<br>
+m-k - SN's # of leaves, so we know to use the hash for &quot;0123&quot; plus the hash for 
+&quot;45&quot; to construct the old root &quot;012345&quot;.</p>
+<p><b>m = 7</b>. k=4 (the number of leaves under &quot;0123&quot;).&nbsp; SN=&quot;456&quot;<br>
+m-k = SN's # of leaves, so we know to use the hash for &quot;0123&quot; plus the hash for 
+&quot;456&quot; to construct the existing root &quot;0123456&quot;</p>
+<p><b>Rule 3</b>: Using the hash of the node obtained in Rule 1, perform an 
+audit proof combining the sibling nodes until the root node is reached.&nbsp; If 
+SN from Rule 2 is the left branch of a node, then we require it's sibling to 
+compute the parent node before we can proceed further up the tree.</p>
 <p>&nbsp;</p>
 <p>&nbsp;</p>
 <p>&nbsp;</p>
-<p>Consistency proofs apply to trees that are &quot;append only&quot;, like a log.&nbsp; 
-As a simplified example, let's say you own the data &quot;0&quot;, &quot;1&quot;, &quot;2&quot;, &quot;3&quot;, and you 
-want to verify that the tree still contains that data, even after you (or 
-others) have appended records to the tree.&nbsp; So you start with:</p>
-<p>&nbsp;</p>
-<p>&nbsp;</p>
-<p>&nbsp;</p>
-<p>This would result in a tree like the one shown at the beginning of the 
-section &quot;Merkle Trees in Action.&quot;&nbsp; </p>
-<p>Now, you want to verify that your leaves &quot;0&quot;, &quot;1&quot;, &quot;2&quot;, and &quot;3&quot; are:</p>
-<ol>
-	<li>still in the tree</li>
-	<li>in the same order</li>
-	<li>and haven't somehow been modified </li>
-</ol>
-<p>When you created your tree, you knew that the root of your tree was &quot;0123&quot;, 
-and you've saved this information along with the hashes of the leaves of your 
-tree (you don't care about the intermediate data.)&nbsp; Now you can ask the 
-server, &quot;Prove to me that &quot;0123&quot; still exists in the tree unmodified.&nbsp; </p>
 <p>&nbsp;</p>
 <p>&nbsp;</p>
 <h2>Storage Analysis</h2>

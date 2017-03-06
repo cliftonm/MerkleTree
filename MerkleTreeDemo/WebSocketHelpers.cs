@@ -13,34 +13,41 @@ namespace MerkleTreeDemo
         private static WebSocket ws;
         private static string response;
 
-        public static void DropShape(string shapeName, int x, int y, string text = "")
+        // cmd=CmdUpdateProperty&Name=btnTest&PropertyName=Text&Value=Foobar
+        public static void UpdateProperty(string name, string propertyName, string value)
         {
             Connect();
-            ws.Send(string.Format("cmd=CmdDropShape&ShapeName={0}&X={1}&Y={2}&Text={3}", shapeName, x, y, text));
-        }
-        //FillColor=
-        public static void DropShape(string shapeName, Rectangle r, string text = "")
-        {
-            Connect();
-            ws.Send(string.Format("cmd=CmdDropShape&ShapeName={0}&X={1}&Y={2}&Width={3}&Height={4}&Text={5}", shapeName, r.X, r.Y, r.Width, r.Height, text));
+            ws.Send(string.Format("cmd=CmdUpdateProperty&Name={0}&PropertyName={1}&Value={2}", name, propertyName, value));
         }
 
-        public static void DropShape(string shapeName, Rectangle r, Color fillColor, string text = "")
+        public static void DropShape(string shapeName, string name, int x, int y, string text = "")
         {
             Connect();
-            ws.Send(string.Format("cmd=CmdDropShape&ShapeName={0}&X={1}&Y={2}&Width={3}&Height={4}&Text={5}&FillColor={6}", shapeName, r.X, r.Y, r.Width, r.Height, text, fillColor.ToHtmlColor('!')));
+            ws.Send(string.Format("cmd=CmdDropShape&ShapeName={0}&Name={1}&X={2}&Y={3}&Text={4}", shapeName, x, y, text, name));
         }
 
-        public static void DropShape(string shapeName, int x, int y, int w, int h, string text = "")
+        public static void DropShape(string shapeName, string name, Rectangle r, string text = "")
         {
             Connect();
-            ws.Send(string.Format("cmd=CmdDropShape&ShapeName={0}&X={1}&Y={2}&Width={3}&Height={4}&Text={5}", shapeName, x, y, w, h, text));
+            ws.Send(string.Format("cmd=CmdDropShape&ShapeName={0}&Name={1}&X={2}&Y={3}&Width={4}&Height={5}&Text={6}", shapeName, name, r.X, r.Y, r.Width, r.Height, text));
         }
 
-        public static void DropConnector(string shapeName, int x1, int y1, int x2, int y2)
+        public static void DropShape(string shapeName, string name, Rectangle r, Color fillColor, string text = "")
         {
             Connect();
-            ws.Send(string.Format("cmd=CmdDropConnector&ConnectorName={0}&X1={1}&Y1={2}&X2={3}&Y2={4}", shapeName, x1, y1, x2, y2));
+            ws.Send(string.Format("cmd=CmdDropShape&ShapeName={0}&Name={1}&X={2}&Y={3}&Width={4}&Height={5}&Text={6}&FillColor={7}", shapeName, name, r.X, r.Y, r.Width, r.Height, text, fillColor.ToHtmlColor('!')));
+        }
+
+        public static void DropShape(string shapeName, string name, int x, int y, int w, int h, string text = "")
+        {
+            Connect();
+            ws.Send(string.Format("cmd=CmdDropShape&ShapeName={0}&Name={1}&X={2}&Y={3}&Width={4}&Height={5}&Text={6}", shapeName, name, x, y, w, h, text));
+        }
+
+        public static void DropConnector(string shapeName, string name, int x1, int y1, int x2, int y2)
+        {
+            Connect();
+            ws.Send(string.Format("cmd=CmdDropConnector&ConnectorName={0}&Name={1}&X1={2}&Y1={3}&X2={4}&Y2={5}", shapeName, name, x1, y1, x2, y2));
         }
 
         private static void Connect()

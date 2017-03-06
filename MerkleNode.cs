@@ -1,10 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 
 namespace Clifton.Blockchain
 {
-    public class MerkleNode
+    public class MerkleNode : IEnumerable<MerkleNode>
     {
         public string Text { get; set; }     // Useful for diagramming.
         public object Tag { get; set; }      // Useful for diagramming.
@@ -26,11 +27,6 @@ namespace Clifton.Blockchain
             Hash = hash;
         }
 
-        public override string ToString()
-        {
-            return Hash.ToString();
-        }
-
         /// <summary>
         /// Constructor for a parent node.
         /// </summary>
@@ -48,9 +44,47 @@ namespace Clifton.Blockchain
             ComputeHash();
         }
 
+        public override string ToString()
+        {
+            return Hash.ToString();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
+        public IEnumerator<MerkleNode> GetEnumerator()
+        {
+            foreach (var n in Iterate(this)) yield return n;
+        }
+
+        protected IEnumerable<MerkleNode> Iterate(MerkleNode node)
+        {
+            if (node.LeftNode != null)
+            {
+                foreach (var n in Iterate(node.LeftNode)) yield return n;
+            }
+
+            if (node.RightNode != null)
+            {
+                foreach (var n in Iterate(node.RightNode)) yield return n;
+            }
+
+            yield return node;
+        }
+
         public void ComputeHash(byte[] buffer)
         {
             Hash = MerkleHash.Create(buffer);
+        }
+
+        /// <summary>
+        /// Return the leaves (not all children, just leaves) under this node
+        /// </summary>
+        public IEnumerable<MerkleNode> Leaves()
+        {
+            return this.Where(n => n.LeftNode == null && n.RightNode == null);
         }
 
         public void SetLeftNode(MerkleNode node)

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -7,7 +6,7 @@ using Clifton.Core.ExtensionMethods;
 
 namespace Clifton.Blockchain
 {
-    public class MerkleTree : IEnumerable<MerkleNode>
+    public class MerkleTree
     {
         public MerkleNode RootNode { get; protected set; }
 
@@ -28,31 +27,6 @@ namespace Clifton.Blockchain
             leaves = new List<MerkleNode>();
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
-
-        public IEnumerator<MerkleNode> GetEnumerator()
-        {
-            foreach (var n in Iterate(RootNode)) yield return n;
-        }
-
-        protected IEnumerable<MerkleNode> Iterate(MerkleNode node)
-        {
-            yield return node;
-
-            if (node.LeftNode != null)
-            {
-                foreach (var n in Iterate(node.LeftNode)) yield return n;
-            }
-
-            if (node.RightNode != null)
-            {
-                foreach (var n in Iterate(node.RightNode)) yield return n;
-            }
-        }
-
         public void AppendLeaf(MerkleHash hash)
         {
             var node = new MerkleNode(hash);
@@ -68,7 +42,6 @@ namespace Clifton.Blockchain
         public MerkleHash AddTree(MerkleTree tree)
         {
             Contract(() => leaves.Count > 0, "Cannot add to a tree with no leaves.");
-            FixOddNumberLeaves();
             tree.leaves.ForEach(l => AppendLeaf(l.Hash));
 
             return BuildTree();
@@ -78,9 +51,8 @@ namespace Clifton.Blockchain
         /// If we have an odd number of leaves, add a leaf that
         /// is a duplicate of the last leaf hash so that when we add the leaves of the new tree,
         /// we don't change the root hash of the current tree.
-        /// This is performed on the source tree whenever a tree is added, and can be performed
-        /// at any time to ensure an even number of leaves, so that the old root isn't affected,
-        /// when adding new leaves.
+        /// This method should only be used if you have a specific reason that you need to balance
+        /// the last node with it's right branch.
         /// </summary>
         public void FixOddNumberLeaves()
         {
@@ -95,6 +67,8 @@ namespace Clifton.Blockchain
         /// </summary>
         public MerkleHash BuildTree()
         {
+            // We do not call FixOddNumberLeaves because we want the ability to append 
+            // leaves and add additional trees without creating unecessary wasted space in the tree.
             Contract(() => leaves.Count > 0, "Cannot build a tree with no leaves.");
             BuildTree(leaves);
 
@@ -132,15 +106,70 @@ namespace Clifton.Blockchain
         /// <summary>
         /// Verifies ordering and consistency of the first n leaves, such that we reach the expected subroot.
         /// This verifies that the prior data has not been changed and that leaf order has been preserved.
+        /// m is the number of leaves for which to do a consistency check.
         /// </summary>
-        public bool ConsistencyCheck(MerkleHash expectedSubrootHash, int numLeaves)
+        public List<MerkleHash> ConsistencyCheck(int m)
         {
-            MerkleHash[] subtreeLeaves = leaves.Take(numLeaves).Select(n=>n.Hash).ToArray();
-            MerkleTree subtree = new MerkleTree();
-            subtree.AppendLeaves(subtreeLeaves);
-            MerkleHash subtreeHash = subtree.BuildTree();
+            // Rule 1:
+            // Find the leftmost node of the tree from which we can start our consistency proof.
+            // Set k, the number of leaves for this node.
+            List<MerkleHash> hashes = new List<MerkleHash>();
+            int idx = (int)Math.Log(m, 2);
 
-            return subtreeHash == expectedSubrootHash;
+            // Get the leftmost node.
+            MerkleNode node = leaves[0];
+
+            // Traverse up the tree until we get to the node specified by idx.
+            while (idx > 0)
+            {
+                node = node.Parent;
+                --idx;
+            }
+
+            int k = node.Leaves().Count();
+            hashes.Add(node.Hash);
+
+            if (m == k)
+            {
+                // Continue with Rule 3 -- the remainder is the audit proof
+            }
+            else
+            {
+                // Rule 2:
+                // Set the initial sibling node (SN) to the sibling of the node acquired by Rule 1.
+                // if m-k == # of SN's leaves, concatenate the hash of the sibling SN and exit Rule 2, as this represents the hash of the old root.
+                // if m - k < # of SN's leaves, set SN to SN's left child node and repeat Rule 2.
+
+                bool traverseTree = true;
+
+                while (traverseTree)
+                {
+                    // sibling node:
+                    MerkleNode sn = node.Parent.RightNode;
+                    Contract(() => sn != null, "Sibling node must exist because m != k");
+                    int sncount = sn.Leaves().Count();
+
+                    if (m - k == sncount)
+                    {
+                        hashes.Add(sn.Hash);
+                        break;
+                    }
+
+                    if (m - k > sncount)
+                    {
+                        sn = sn.LeftNode;
+                    }
+
+                    if (m - k < sncount)
+                    {
+                        sn = sn.Parent.RightNode.LeftNode;
+                    }
+                }
+            }
+
+            // Rule 3:
+
+            return hashes;
         }
 
         /// <summary>

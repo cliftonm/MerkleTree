@@ -26,9 +26,59 @@ namespace MerkleTreeDemo
         public Form1()
         {
             InitializeComponent();
+            AuditProofDemo();
+
+            // ConsistencyProofDemo();
+        }
+
+        public void AuditProofDemo()
+        {
             MerkleTree tree = new MerkleTree();
             DrawBasicTree(tree);
             // DrawAuditProof("2", tree);
+        }
+
+        public void ConsistencyProofDemo()
+        {
+            MerkleTree hashTree0 = new MerkleTree();
+            hashTree0.AppendLeaves(new MerkleHash[]
+                {
+                    MerkleHash.Create("0"),
+                    MerkleHash.Create("1"),
+                    MerkleHash.Create("2"),
+                });
+            MerkleHash hash0 = hashTree0.BuildTree();
+
+            MerkleTree hashTree1 = new MerkleTree();
+            hashTree1.AppendLeaves(new MerkleHash[]
+                {
+                    MerkleHash.Create("3"),
+                });
+            MerkleHash hash1 = hashTree1.BuildTree();
+            hashTree0.AddTree(hashTree1);
+
+            MerkleTree hashTree2 = new MerkleTree();
+            hashTree2.AppendLeaves(new MerkleHash[]
+                {
+                    MerkleHash.Create("4"),
+                    MerkleHash.Create("5"),
+                });
+            MerkleHash hash2 = hashTree2.BuildTree();
+            hashTree0.AddTree(hashTree2);
+
+            MerkleTree hashTree3 = new MerkleTree();
+            hashTree3.AppendLeaves(new MerkleHash[]
+                {
+                    MerkleHash.Create("6"),
+                });
+            MerkleHash rootHash = hashTree0.AddTree(hashTree3);
+
+            // hashTree0 is now the full tree.
+            // In this case, we're providing the m-value for clarity of the demo.
+            // See diagram in section 2.1.3 of https://tools.ietf.org/html/rfc6962
+            DrawConsistencyProof(hashTree0, hash0, 3, rootHash);
+            DrawConsistencyProof(hashTree0, hash1, 4, rootHash);
+            DrawConsistencyProof(hashTree0, hash2, 6, rootHash);
         }
 
         public void DrawBasicTree(MerkleTree tree)
@@ -66,14 +116,18 @@ namespace MerkleTreeDemo
 
         protected void DrawAuditProof(string text, MerkleTree tree)
         {
-            MerkleNode node = tree.Single(t => t.Text == text);
+            MerkleNode node = tree.RootNode.Single(t => t.Text == text);
             List<MerkleAuditHash> proof = tree.Audit(node.Hash);
 
             foreach (var auditHash in proof)
             {
-                MerkleNode n = tree.Single(t => t.Hash == auditHash.Hash);
+                MerkleNode n = tree.RootNode.Single(t => t.Hash == auditHash.Hash);
                 Highlight(n);
             }
+        }
+
+        protected void DrawConsistencyProof(MerkleTree tree, MerkleHash originalDataHash, int m, MerkleHash newRootHash)
+        {
         }
 
         protected void CreateParentTags(IEnumerable<MerkleNode> parents)
@@ -108,7 +162,7 @@ namespace MerkleTreeDemo
             foreach (var leaf in leaves)
             {
                 var leafRect = new Rectangle(i * X_OFFSET, LEAF_Y, NODE_WIDTH, NODE_HEIGHT);
-                WebSocketHelpers.DropShape("Box", leafRect, LEAF_COLOR, leaf.Text);
+                WebSocketHelpers.DropShape("Box", leaf.Text, leafRect, LEAF_COLOR, leaf.Text);
                 rects.Add(leafRect);
                 leaf.Tag = leafRect;
                 ++i;
@@ -129,7 +183,7 @@ namespace MerkleTreeDemo
             foreach (var node in parents)
             {
                 var nodeRect = new Rectangle(indent + i * spacing, LEAF_Y - (V_OFFSET * level), NODE_WIDTH, NODE_HEIGHT);
-                WebSocketHelpers.DropShape("Box", nodeRect, nodeColor, node.Text);
+                WebSocketHelpers.DropShape("Box", node.Text, nodeRect, nodeColor, node.Text);
                 rects.Add(nodeRect);
                 node.Tag = nodeRect;
                 ++i;
@@ -149,7 +203,7 @@ namespace MerkleTreeDemo
                 var topMiddle = rlower.TopMiddle();
                 var bottomMiddle = rupper.BottomMiddle();
                 // WebSocketHelpers.DropConnector("DiagonalConnector", bottomMiddle.X, bottomMiddle.Y, topMiddle.X, topMiddle.Y);
-                WebSocketHelpers.DropConnector("DynamicConnectorUD", bottomMiddle.X, bottomMiddle.Y, topMiddle.X, topMiddle.Y);
+                WebSocketHelpers.DropConnector("DynamicConnectorUD", "", bottomMiddle.X, bottomMiddle.Y, topMiddle.X, topMiddle.Y);
                 n++;
                 n2 = n2 + ((n % 2) == 0 ? 1 : 0);
             }
@@ -158,7 +212,7 @@ namespace MerkleTreeDemo
         protected void Highlight(MerkleNode node)
         {
             Rectangle r = (Rectangle)node.Tag;
-            WebSocketHelpers.DropShape("Box", r, Color.Yellow, node.Text);
+            WebSocketHelpers.UpdateProperty(node.Text, "FillColor", "Yellow");
         }
     }
 }
