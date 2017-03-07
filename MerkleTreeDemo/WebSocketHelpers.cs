@@ -1,4 +1,8 @@
-﻿using System.Drawing;
+﻿using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 
 using WebSocketSharp;
 
@@ -54,7 +58,9 @@ namespace MerkleTreeDemo
         {
             if (ws == null || !ws.IsAlive)
             {
-                ws = new WebSocket("ws://192.168.1.124:1100/flowsharp", new MyListener());
+                // ws = new WebSocket("ws://192.168.1.165:1100/flowsharp", new MyListener());
+                string localip = GetLocalHostIPs()[0].ToString();
+                ws = new WebSocket("ws://" + localip + ":1100/flowsharp", new MyListener());
 
                 ws.OnMessage += (sender, e) =>
                 {
@@ -64,5 +70,15 @@ namespace MerkleTreeDemo
                 ws.Connect();
             }
         }
+
+        private static List<IPAddress> GetLocalHostIPs()
+        {
+            IPHostEntry host;
+            host = Dns.GetHostEntry(Dns.GetHostName());
+            List<IPAddress> ret = host.AddressList.Where(ip => ip.AddressFamily == AddressFamily.InterNetwork).ToList();
+
+            return ret;
+        }
+
     }
 }

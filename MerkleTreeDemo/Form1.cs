@@ -83,24 +83,26 @@ namespace MerkleTreeDemo
 
         public void DrawBasicTree(MerkleTree tree)
         {
+            List<MerkleNode> leaves = new List<MerkleNode>();
+
             for (int i = 0; i < NUM_LEAVES; i++)
             {
-                tree.AppendLeaf(MerkleHash.Create(i.ToString()));
+                var node = tree.AppendLeaf(MerkleHash.Create(i.ToString()));
+                node.Text = i.ToString();
             }
+
+            // Build tree last, so text merges up the tree.
+            // tree.FixOddNumberLeaves();
 
             tree.BuildTree();
 
-            MerkleNode rootNode = tree.RootNode;
-
-            // Get all leaves
-            List<MerkleNode> leaves = new List<MerkleNode>();
-            GetLeaves(rootNode, leaves);
-            leaves.ForEachWithIndex((idx, l) => l.Text = idx.ToString());
-
+            // Get the leaves after the odd number fix, because this is what BuildTree is 
+            // doing behind the scenes.
+            leaves = tree.RootNode.Leaves().ToList();
             List<Rectangle> shapesLower = DrawLeaves(leaves);
 
             IEnumerable<MerkleNode> parents = leaves.Select(l => l.Parent).Distinct();
-            CreateParentTags(parents);
+            // CreateParentTags(parents);
 
             int level = 1;
 
@@ -110,48 +112,28 @@ namespace MerkleTreeDemo
                 DrawConnectors(shapesLower, shapesUpper);
                 shapesLower = shapesUpper;
                 parents = parents.Select(p => p?.Parent).Where(p=>p != null).Distinct();
-                CreateParentTags(parents);
+                // CreateParentTags(parents);
             }
         }
 
         protected void DrawAuditProof(string text, MerkleTree tree)
         {
-            MerkleNode node = tree.RootNode.Single(t => t.Text == text);
+            // We use First because a tree with an odd number of leaves will duplicate the last leaf
+            // when computing the hash.
+            MerkleNode node = tree.RootNode.First(t => t.Text == text);
             List<MerkleAuditHash> proof = tree.Audit(node.Hash);
 
             foreach (var auditHash in proof)
             {
-                MerkleNode n = tree.RootNode.Single(t => t.Hash == auditHash.Hash);
+                // We use First because a tree with an odd number of leaves will duplicate the last leaf
+                // when computing the hash.
+                MerkleNode n = tree.RootNode.First(t => t.Hash == auditHash.Hash);
                 Highlight(n);
             }
         }
 
         protected void DrawConsistencyProof(MerkleTree tree, MerkleHash originalDataHash, int m, MerkleHash newRootHash)
         {
-        }
-
-        protected void CreateParentTags(IEnumerable<MerkleNode> parents)
-        {
-            parents.ForEach(p => p.Text = p.LeftNode.Text + p?.RightNode?.Text ?? "-");
-        }
-
-        protected void GetLeaves(MerkleNode node, List<MerkleNode> leaves)
-        {
-            if (node.LeftNode == null && node.RightNode == null)
-            {
-                leaves.Add(node);
-            }
-            else
-            {
-                // Left node will always exist.
-                GetLeaves(node.LeftNode, leaves);
-
-                // Right node may not exist and end of leaves.
-                if (node.RightNode != null)
-                {
-                    GetLeaves(node.RightNode, leaves);
-                }
-            }
         }
 
         protected List<Rectangle> DrawLeaves(List<MerkleNode> leaves)

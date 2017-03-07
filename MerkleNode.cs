@@ -27,7 +27,7 @@ namespace Clifton.Blockchain
             Hash = hash;
         }
 
-        /// <summary>
+        /// <summary>                
         /// Constructor for a parent node.
         /// </summary>
         public MerkleNode(MerkleNode left, MerkleNode right = null)
@@ -35,18 +35,14 @@ namespace Clifton.Blockchain
             LeftNode = left;
             RightNode = right;
             LeftNode.Parent = this;
-
-            if (RightNode != null)
-            {
-                RightNode.Parent = this;
-            }
-
+            MergeText(left, right);
             ComputeHash();
         }
 
         public override string ToString()
         {
-            return Hash.ToString();
+            // Useful for debugging, we use the node text if it exists, otherwise return the hash as a string.
+            return Text ?? Hash.ToString();
         }
 
         IEnumerator IEnumerable.GetEnumerator()
@@ -74,9 +70,11 @@ namespace Clifton.Blockchain
             yield return node;
         }
 
-        public void ComputeHash(byte[] buffer)
+        public MerkleHash ComputeHash(byte[] buffer)
         {
             Hash = MerkleHash.Create(buffer);
+
+            return Hash;
         }
 
         /// <summary>
@@ -146,9 +144,31 @@ namespace Clifton.Blockchain
 
         protected void ComputeHash()
         {
-            MerkleHash rightHash = RightNode == null ? LeftNode.Hash : RightNode.Hash;
-            ComputeHash(LeftNode.Hash.Value.Concat(rightHash.Value).ToArray());
+            // Repeat the left node if the right node doesn't exist.
+            // This process breaks the case of doing a consistency check on 3 leaves when there are only 3 leaves in the tree.
+            //MerkleHash rightHash = RightNode == null ? LeftNode.Hash : RightNode.Hash;
+            //Hash = MerkleHash.Create(LeftNode.Hash.Value.Concat(rightHash.Value).ToArray());
+
+            // Alternativately, do not repeat the left node, but carry the left node's hash up.
+            // This process does not break the edge case described above.
+            Hash = RightNode == null ? LeftNode.Hash : MerkleHash.Create(LeftNode.Hash.Value.Concat(RightNode.Hash.Value).ToArray());
             Parent?.ComputeHash();      // Recurse, because out hash has changed.
+        }
+
+        protected void MergeText(MerkleNode left, MerkleNode right)
+        {
+            Text = left.Text;
+
+            if (RightNode != null)
+            {
+                RightNode.Parent = this;
+
+                // Useful for debugging, we combine the text of the two nodes.
+                if (Text != null)
+                {
+                    Text += right.Text ?? "";
+                }
+            }
         }
     }
 }
