@@ -18,7 +18,7 @@ namespace MerkleTreeDemo
         public const int X_OFFSET = 80;
         public const int NODE_WIDTH = 75;
         public const int NODE_HEIGHT = 30;
-        public const int NUM_LEAVES = 7;
+        public const int NUM_LEAVES = 8;
         public readonly Color LEAF_COLOR = Color.LightGreen;
         public readonly Color NODE_COLOR = Color.LightBlue;
         public readonly Color ROOT_COLOR = ControlPaint.LightLight(Color.Red);
@@ -34,54 +34,59 @@ namespace MerkleTreeDemo
         public void AuditProofDemo()
         {
             MerkleTree tree = new MerkleTree();
-            DrawBasicTree(tree);
-            // DrawAuditProof("2", tree);
+            CreateTree(tree);
+            DrawTree(tree);
+            DrawAuditProof("4", tree);
         }
 
         public void ConsistencyProofDemo()
         {
             MerkleTree hashTree0 = new MerkleTree();
-            hashTree0.AppendLeaves(new MerkleHash[]
+            hashTree0.AppendLeaves(new MerkleNode[]
                 {
-                    MerkleHash.Create("0"),
-                    MerkleHash.Create("1"),
-                    MerkleHash.Create("2"),
+                    new MerkleNode(MerkleHash.Create("0")).SetText("0"),
+                    new MerkleNode(MerkleHash.Create("1")).SetText("1"),
+                    new MerkleNode(MerkleHash.Create("2")).SetText("2"),
                 });
             MerkleHash hash0 = hashTree0.BuildTree();
 
             MerkleTree hashTree1 = new MerkleTree();
-            hashTree1.AppendLeaves(new MerkleHash[]
+            hashTree1.AppendLeaves(new MerkleNode[]
                 {
-                    MerkleHash.Create("3"),
+                    new MerkleNode(MerkleHash.Create("3")).SetText("3"),
                 });
             MerkleHash hash1 = hashTree1.BuildTree();
             hashTree0.AddTree(hashTree1);
 
             MerkleTree hashTree2 = new MerkleTree();
-            hashTree2.AppendLeaves(new MerkleHash[]
+            hashTree2.AppendLeaves(new MerkleNode[]
                 {
-                    MerkleHash.Create("4"),
-                    MerkleHash.Create("5"),
+                    new MerkleNode(MerkleHash.Create("4")).SetText("4"),
+                    new MerkleNode(MerkleHash.Create("5")).SetText("5"),
                 });
             MerkleHash hash2 = hashTree2.BuildTree();
             hashTree0.AddTree(hashTree2);
 
             MerkleTree hashTree3 = new MerkleTree();
-            hashTree3.AppendLeaves(new MerkleHash[]
+            hashTree3.AppendLeaves(new MerkleNode[]
                 {
-                    MerkleHash.Create("6"),
+                    new MerkleNode(MerkleHash.Create("6")).SetText("6"),
+                    new MerkleNode(MerkleHash.Create("7")).SetText("7"),
                 });
             MerkleHash rootHash = hashTree0.AddTree(hashTree3);
+
+            DrawTree(hashTree0);
 
             // hashTree0 is now the full tree.
             // In this case, we're providing the m-value for clarity of the demo.
             // See diagram in section 2.1.3 of https://tools.ietf.org/html/rfc6962
-            DrawConsistencyProof(hashTree0, hash0, 3, rootHash);
-            DrawConsistencyProof(hashTree0, hash1, 4, rootHash);
-            DrawConsistencyProof(hashTree0, hash2, 6, rootHash);
+            //DrawConsistencyProof(hashTree0, hash0, 3, rootHash);
+            // DrawConsistencyProof(hashTree0, hash1, 4, rootHash);
+            // DrawConsistencyProof(hashTree0, hash2, 6, rootHash);
+            DrawConsistencyProof(hashTree0, hash2, 7, rootHash);
         }
 
-        public void DrawBasicTree(MerkleTree tree)
+        public void CreateTree(MerkleTree tree)
         {
             List<MerkleNode> leaves = new List<MerkleNode>();
 
@@ -91,18 +96,14 @@ namespace MerkleTreeDemo
                 node.Text = i.ToString();
             }
 
-            // Build tree last, so text merges up the tree.
-            // tree.FixOddNumberLeaves();
-
             tree.BuildTree();
+        }
 
-            // Get the leaves after the odd number fix, because this is what BuildTree is 
-            // doing behind the scenes.
-            leaves = tree.RootNode.Leaves().ToList();
+        public void DrawTree(MerkleTree tree)
+        {
+            List<MerkleNode> leaves = leaves = tree.RootNode.Leaves().ToList();
             List<Rectangle> shapesLower = DrawLeaves(leaves);
-
             IEnumerable<MerkleNode> parents = leaves.Select(l => l.Parent).Distinct();
-            // CreateParentTags(parents);
 
             int level = 1;
 
@@ -134,6 +135,8 @@ namespace MerkleTreeDemo
 
         protected void DrawConsistencyProof(MerkleTree tree, MerkleHash originalDataHash, int m, MerkleHash newRootHash)
         {
+            List<MerkleNode> proof = tree.ConsistencyCheck(m);
+            proof.ForEach(node => Highlight(node));
         }
 
         protected List<Rectangle> DrawLeaves(List<MerkleNode> leaves)

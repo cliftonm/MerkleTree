@@ -27,6 +27,19 @@ namespace Clifton.Blockchain
             leaves = new List<MerkleNode>();
         }
 
+        public MerkleNode AppendLeaf(MerkleNode node)
+        {
+            nodes.Add(node);
+            leaves.Add(node);
+
+            return node;
+        }
+
+        public void AppendLeaves(MerkleNode[] nodes)
+        {
+            nodes.ForEach(n => AppendLeaf(n));
+        }
+
         public MerkleNode AppendLeaf(MerkleHash hash)
         {
             var node = new MerkleNode(hash);
@@ -47,7 +60,7 @@ namespace Clifton.Blockchain
         public MerkleHash AddTree(MerkleTree tree)
         {
             Contract(() => leaves.Count > 0, "Cannot add to a tree with no leaves.");
-            tree.leaves.ForEach(l => AppendLeaf(l.Hash));
+            tree.leaves.ForEach(l => AppendLeaf(l));
 
             return BuildTree();
         }
@@ -169,7 +182,7 @@ namespace Clifton.Blockchain
                         sn = sn.Parent.RightNode;
                         k += sncount;
                     }
-                    else if (m - k < sncount)
+                    else // (m - k < sncount)
                     {
                         sn = sn.LeftNode;
                     }

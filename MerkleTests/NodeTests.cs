@@ -208,11 +208,6 @@ namespace MerkleTests
                 // After adding a leaf, verify that all the old root hashes exist.
                 oldRoots.ForEachWithIndex((oldRootHash, n) =>
                 {
-                    if (i == 7 && n == 5)
-                    {
-                        // System.Diagnostics.Debugger.Break();
-                    }
-
                     List<MerkleNode> proof = tree.ConsistencyCheck(n+2);
                     MerkleHash hash;
 

@@ -177,59 +177,46 @@ for each sub-tree given the new tree (last figure above):</p>
 	<li>The first tree has a root hash of &quot;012&quot;.</li>
 	<li>When the second tree was added, the root hash became &quot;0123&quot;.</li>
 	<li>When the third tree was added, the root hash changed to &quot;012345&quot;.</li>
-	<li>When the last tree was added, the root hash changed to &quot;0123456&quot;.</li>
+	<li>When the last tree was added, the root hash changed to &quot;0123456&quot;. </li>
 </ol>
+<p><u>Consistency Proof of the First Tree</u></p>
 <p>What do we need to do to verify that the first tree, with its 3 leaves, still 
 exists in the new tree?</p>
-<ol>
-	<li>First, we take the first pair of leaves (&quot;0&quot; and &quot;1&quot; and compute the 
-	hash for that pair, which is &quot;01&quot;.</li>
-	<li>Because the number of leaves is odd, we have to take only the hash of 
-	&quot;2&quot; and combine it with &quot;01&quot;, giving us the hash for &quot;012&quot;.<ol>
-		<li>This verifies the original hash.</li>
-		<li>However, to continue up the tree, we need the right sibling (this is 
-		critical phrasing!).</li>
-		<li><img border="0" src="important.png" width="38" height="32">&nbsp; 
-		This hash cannot be computed without involving the hash of the leaf 
-		(&quot;3&quot;) which we pair with &quot;2&quot; to compute the hash for &quot;23&quot;.</li>
-	</ol>
-	</li>
-	<li>Knowing now the hashes for the first 4 records &quot;01&quot; and &quot;23&quot;, we can 
-	compute their hash &quot;0123&quot;.</li>
-	<li>We then note the sibling node with its hash &quot;456&quot; and combine that to 
-	arrive at the current root hash &quot;0123456&quot;.</li>
-</ol>
-<p>The second tree added only one node and so the computation is simpler because 
-the number of nodes is even:</p>
-<ol>
-	<li>We locate in the tree the hash of the root when the second tree was 
-	added, which is &quot;0123&quot;.</li>
-	<li>We now continue (using the sibling of &quot;0123&quot;) as if we were doing an 
-	audit proof and again arrive at the root hash &quot;0123456&quot;.</li>
-</ol>
-<p>The third tree added two nodes, and to verify the integrity of that tree in 
-the final tree state (with the fourth tree added) requires:</p>
-<ol>
-	<li>The hash &quot;012345&quot; no longer directly exists as a node in the tree.&nbsp; 
-	</li>
-	<li>Because we know this involves 6 nodes, then way the tree is balanced is:<ol>
-		<li>The hash &quot;0123&quot; and the hash &quot;45&quot;...</li>
-		<li>which we combine to create the hash for &quot;012345&quot;, verifying the root 
-		hash when the third tree was added.</li>
-	</ol>
-	</li>
-	<li>Because there is no fourth pair, we again need the right sibling hash 
-	(again, this is critical phrasing!) which we know to be &quot;6&quot;.<ol>
-		<li><img border="0" src="important.png" width="38" height="32">&nbsp; We 
-		also know that this is the end of the leaves, so there is no 
-		right-branch that can be added to balance this node.</li>
-	</ol>
-	</li>
-	<li>We take the left sibling whose has is &quot;45&quot; and combine it with the right 
-	sibling which is &quot;6&quot; and arrive at the hash for &quot;456&quot;.</li>
-	<li>We then take &quot;0123&quot; and &quot;456&quot; and arrive again at the root hash 
-	&quot;0123456&quot;.</li>
-</ol>
+<p><img border="0" src="consistency1.png" width="609" height="221"></p>
+<p>As the above diagram illustrates, we need the hashes of 2 nodes &quot;01&quot; and &quot;2&quot; 
+in order to reconstruct the first tree's old root has of &quot;012&quot;.</p>
+<p><u>Consistency Proof of the Second Tree</u></p>
+<p>The root hash when we added the second tree, which was one leaf &quot;3&quot;, was the 
+hash for the node &quot;0123&quot;.</p>
+<p><img border="0" src="consistency2.png" width="611" height="222"></p>
+<p>The consistency proof is simply the node that represents &quot;0123&quot;.</p>
+<p><u>Consistency Proof of the Third Tree</u></p>
+<p>The third tree added two nodes &quot;45&quot; and the root hash at that point was 
+&quot;012345&quot;.&nbsp; The consistency proof obtains that for us:</p>
+<p><img border="0" src="consistency3.png" width="607" height="222"></p>
+<p><u>Consistency Proof Another Scenario</u></p>
+<p>Let's say we added leaves &quot;4&quot;, &quot;5&quot;, and &quot;6&quot; separately.&nbsp; When we added 
+the leaf for &quot;4&quot;, we were given the hash for the node &quot;01234&quot; for the 5 leaves 
+in the tree at that point.&nbsp; Now that we have 7 leaves in the tree, here's 
+the pieces needed to reconstruct the old root hash of &quot;01234&quot;:</p>
+<p><img border="0" src="consistency4.png" width="604" height="225"></p>
+<p><u>Consistency Proof Last Scenario</u></p>
+<p>This scenario differs from all the rest because three nodes are required to 
+construct the original root hash.&nbsp; Given a tree with 8 leaves, where the 
+7th leaf (node &quot;6&quot;) was added, the root hash at that point was the hash for 
+&quot;0123456&quot;.&nbsp; The reconstruction of this hash requires these nodes:</p>
+<p><img border="0" src="consistency5.png" width="644" height="226"></p>
+<h4>Reconstructing the Old Root Hash</h4>
+<p>The last example above illustrates how the old root hash &quot;0123456&quot; is 
+reconstructed from the the list of nodes in the consistency proof.&nbsp; Here, 
+the nodes are given to us in the following order:</p>
+<p>0123<br>
+45<br>
+6</p>
+<p>To reconstruct the old hash, we have to combine hashes from right to left:</p>
+<p>45 + 6 = 456<br>
+0123 + 456 = 0123456</p>
+<h4>Consistency Proof Caveats</h4>
 <p>This is not a trivial algorithm and uses the following rules and information:</p>
 <ul>
 	<li>A consistency proof is always based on a computation verifying the first
@@ -261,6 +248,12 @@ the final tree state (with the fourth tree added) requires:</p>
 	counts.&nbsp; This is probably a more secure way of managing the required 
 	information.</li>
 </ul>
+<p>On the other hand, the algorithm is very efficient because it begins with the 
+leftmost node at the level that is log<sub>2</sub>(<i>m</i>).&nbsp; This avoids 
+having to compute the hashes for potentially thousands of leaves starting from 
+the first leaf, but still guarantees that if the resulting proof matches the 
+hash when the tree was appended, the order of the records and the records 
+themselves are valid. </p>
 <h4>Consistency Proof General Algorithm</h4>
 <p>You can read through the consistency proof in section 2.1.2 of RFC 6962<sup>9</sup>, 
 or you can just go with this:</p>
@@ -270,7 +263,7 @@ left piece) of the hash needed to obtain the old root hash.</p>
 <p>Given <i>m</i>, the number of leaves in the master tree after a sub-tree was 
 added, take <i>n</i>=log<sub>2</sub>(<i>m</i>) to find the index of the node 
 representing at most<i> m</i> leaves.&nbsp; This index is the left-branch 
-traversal, starting from the leftmost leaf, of the tree.</p>
+traversal up the tree, starting from the leftmost leaf, of the tree.</p>
 <p>For example:</p>
 <p>3 leaves: log<sub>2</sub>(3) = 1.58 (we start at node &quot;01&quot;)<br>
 4 leaves: log<sub>2</sub>(4) = 2 (we start at node &quot;0123&quot;)<br>
@@ -279,7 +272,8 @@ traversal, starting from the leftmost leaf, of the tree.</p>
 with.&nbsp; By starting at the correct level, we know that the sub-tree starts 
 at this position or is a composite -- if there's a remainder of log<sub>2</sub>(<i>m</i>) 
 -- of the current node's hash and the hash of a sibling node.&nbsp; This diagram 
-should help:</p>
+should help (note that level 3 is actually not representing 8 leaves, because 
+all 8 leaves haven't been added yet):</p>
 <p><img border="0" src="r4.png" width="603" height="221"></p>
 <p>Also, set <i>k</i>, the number of leaves for this node (<u>nodes have to 
 retain their leaf count because the last leaf of a tree might be missing.</u>)</p>
@@ -294,9 +288,11 @@ rule 3.</p>
 <p>m of 3: index = 1 (&quot;the &quot;01&quot; node) and it has 2 leaves, but m-k = 1, so we 
 move on to rule 2.</p>
 <p><b>Rule 2</b>:&nbsp; </p>
-<p>if m-k == # of SN's leaves, concatenate the hash of the sibling SN and exit 
+<p>if m-k == # of SN's leaves, concatenate the hash of&nbsp; SN and exit 
 Rule 2, as this represents the hash of the old root.</p>
 <p>if m-k &lt; # of SN's leaves, set SN to SN's left child node and repeat Rule 2.</p>
+<p>if m-k &gt; # of SN's leaves, concatenate the hash of SN, increment k by SN's # 
+of leaves, and set SN to its parent's right node.</p>
 <p>In this manner, we always end of with the hashes from which we can 
 reconstruct the old root hash.</p>
 <p>A few scenarios:</p>
@@ -327,10 +323,23 @@ m-k - SN's # of leaves, so we know to use the hash for &quot;0123&quot; plus the
 <p><b>m = 7</b>. k=4 (the number of leaves under &quot;0123&quot;).&nbsp; SN=&quot;456&quot;<br>
 m-k = SN's # of leaves, so we know to use the hash for &quot;0123&quot; plus the hash for 
 &quot;456&quot; to construct the existing root &quot;0123456&quot;</p>
-<p><b>Rule 3</b>: Using the hash of the node obtained in Rule 1, perform an 
-audit proof combining the sibling nodes until the root node is reached.&nbsp; If 
-SN from Rule 2 is the left branch of a node, then we require it's sibling to 
-compute the parent node before we can proceed further up the tree.</p>
+<p><b>Rule 3</b>: The remainder of the proof, from which can derive the current 
+root hash, involves:</p>
+<p>a: concatenating the last hash with the right sibling (if it exists) of the 
+last hash to obtain the parent hash.&nbsp; </p>
+<p>b: Continue with the audit proof (using the appropriate left or right 
+sibling) until the sibling whose hash is the first hash in the proof is 
+obtained.&nbsp; This is basically a verification that that hash (the first hash 
+in the proof) is encountered and should always be the left sibling.&nbsp; </p>
+<p>c: Combine the two hashes and continue with the audit proof until the root 
+node is encountered, whose hash should be the same as the current tree's hash.</p>
+<p>For example, given this consistency proof to the old hash for the tree 
+representing &quot;01234&quot; (this is the more interesting example):</p>
+<p><img border="0" src="consistency6.png" width="645" height="222"></p>
+<p>The nodes involved in the remainder of the proof, so that we obtain the root 
+hash, are the hashes of the nodes &quot;5&quot; and &quot;67&quot;.&nbsp; We need &quot;5&quot; to obtain 
+&quot;45&quot;, and we need &quot;67&quot; to obtain &quot;4567&quot;.&nbsp; Interesting, isn't it!</p>
+<p>&nbsp;</p>
 <p>&nbsp;</p>
 <p>&nbsp;</p>
 <p>&nbsp;</p>

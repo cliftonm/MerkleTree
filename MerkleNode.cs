@@ -70,6 +70,20 @@ namespace Clifton.Blockchain
             yield return node;
         }
 
+        public MerkleNode SetText(string text)
+        {
+            Text = text;
+
+            return this;
+        }
+
+        public MerkleNode SetTag(object tag)
+        {
+            Tag = tag;
+
+            return this;
+        }
+
         public MerkleHash ComputeHash(byte[] buffer)
         {
             Hash = MerkleHash.Create(buffer);
