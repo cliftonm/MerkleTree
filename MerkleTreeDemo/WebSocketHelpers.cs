@@ -24,6 +24,12 @@ namespace MerkleTreeDemo
             ws.Send(string.Format("cmd=CmdUpdateProperty&Name={0}&PropertyName={1}&Value={2}", name, propertyName, value));
         }
 
+        public static void ClearCanvas()
+        {
+            Connect();
+            ws.Send(string.Format("cmd=CmdClearCanvas"));
+        }
+
         public static void DropShape(string shapeName, string name, int x, int y, string text = "")
         {
             Connect();

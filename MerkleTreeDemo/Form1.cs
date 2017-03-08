@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows.Forms;
 
 using FlowSharpLib;
+using FlowSharpServiceInterfaces;
 
 using Clifton.Core.ExtensionMethods;
 using Clifton.Blockchain;
@@ -18,7 +19,6 @@ namespace MerkleTreeDemo
         public const int X_OFFSET = 80;
         public const int NODE_WIDTH = 75;
         public const int NODE_HEIGHT = 30;
-        public const int NUM_LEAVES = 8;
         public readonly Color LEAF_COLOR = Color.LightGreen;
         public readonly Color NODE_COLOR = Color.LightBlue;
         public readonly Color ROOT_COLOR = ControlPaint.LightLight(Color.Red);
@@ -26,16 +26,49 @@ namespace MerkleTreeDemo
         public Form1()
         {
             InitializeComponent();
-            AuditProofDemo();
+            InitializeFlowSharp();
+            Shown += OnShown;
+        }
 
+        protected void InitializeFlowSharp()
+        {
+            var canvasService = Program.ServiceManager.Get<IFlowSharpCanvasService>();
+            canvasService.CreateCanvas(pnlFlowSharp);
+            canvasService.ActiveController.Canvas.EndInit();
+            canvasService.ActiveController.Canvas.Invalidate();
+
+            // Initialize Toolbox so we can drop shapes
+            IFlowSharpToolboxService toolboxService = Program.ServiceManager.Get<IFlowSharpToolboxService>();
+
+            // We don't display the toolbox, but we need a container.
+            Panel pnlToolbox = new Panel();
+            pnlToolbox.Visible = false;
+            Controls.Add(pnlToolbox);
+
+            toolboxService.CreateToolbox(pnlToolbox);
+            toolboxService.InitializeToolbox();
+
+            var mouseController = Program.ServiceManager.Get<IFlowSharpMouseControllerService>();
+            mouseController.Initialize(canvasService.ActiveController);
+        }
+
+        private void OnShown(object sender, EventArgs e)
+        {
+            WebSocketHelpers.ClearCanvas();
+            MerkleTree tree = new MerkleTree();
+            CreateTree(tree, (int)nudNumLeaves.Value);
+            DrawTree(tree);
+            //AuditProofDemo();
+            //WebSocketHelpers.ClearCanvas();
             // ConsistencyProofDemo();
         }
 
         public void AuditProofDemo()
         {
             MerkleTree tree = new MerkleTree();
-            CreateTree(tree);
+            CreateTree(tree, (int)nudNumLeaves.Value);
             DrawTree(tree);
+            tree.RootNode.Leaves().Take(5).ForEach(n => Highlight(n, "Orange"));
             DrawAuditProof("4", tree);
         }
 
@@ -80,17 +113,18 @@ namespace MerkleTreeDemo
             // hashTree0 is now the full tree.
             // In this case, we're providing the m-value for clarity of the demo.
             // See diagram in section 2.1.3 of https://tools.ietf.org/html/rfc6962
-            //DrawConsistencyProof(hashTree0, hash0, 3, rootHash);
+            // DrawConsistencyProof(hashTree0, hash0, 3, rootHash);
             // DrawConsistencyProof(hashTree0, hash1, 4, rootHash);
+            // DrawConsistencyProof(hashTree0, hash1, 5, rootHash);
             // DrawConsistencyProof(hashTree0, hash2, 6, rootHash);
-            DrawConsistencyProof(hashTree0, hash2, 7, rootHash);
+            // DrawConsistencyProof(hashTree0, hash2, 7, rootHash);
         }
 
-        public void CreateTree(MerkleTree tree)
+        public void CreateTree(MerkleTree tree, int numLeaves)
         {
             List<MerkleNode> leaves = new List<MerkleNode>();
 
-            for (int i = 0; i < NUM_LEAVES; i++)
+            for (int i = 0; i < numLeaves; i++)
             {
                 var node = tree.AppendLeaf(MerkleHash.Create(i.ToString()));
                 node.Text = i.ToString();
@@ -122,6 +156,7 @@ namespace MerkleTreeDemo
             // We use First because a tree with an odd number of leaves will duplicate the last leaf
             // when computing the hash.
             MerkleNode node = tree.RootNode.First(t => t.Text == text);
+            Highlight(node, "Orange");
             List<MerkleAuditHash> proof = tree.Audit(node.Hash);
 
             foreach (var auditHash in proof)
@@ -135,6 +170,7 @@ namespace MerkleTreeDemo
 
         protected void DrawConsistencyProof(MerkleTree tree, MerkleHash originalDataHash, int m, MerkleHash newRootHash)
         {
+            tree.RootNode.Leaves().Take(m).ForEach(n => Highlight(n, "Orange"));
             List<MerkleNode> proof = tree.ConsistencyCheck(m);
             proof.ForEach(node => Highlight(node));
         }
@@ -194,10 +230,18 @@ namespace MerkleTreeDemo
             }
         }
 
-        protected void Highlight(MerkleNode node)
+        protected void Highlight(MerkleNode node, string color = "Yellow")
         {
             Rectangle r = (Rectangle)node.Tag;
-            WebSocketHelpers.UpdateProperty(node.Text, "FillColor", "Yellow");
+            WebSocketHelpers.UpdateProperty(node.Text, "FillColor", color);
+        }
+
+        private void NumLeavesChanged(object sender, EventArgs e)
+        {
+            WebSocketHelpers.ClearCanvas();
+            MerkleTree tree = new MerkleTree();
+            CreateTree(tree, (int)nudNumLeaves.Value);
+            DrawTree(tree);
         }
     }
 }

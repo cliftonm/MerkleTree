@@ -132,7 +132,7 @@ also have, from a trusted authority, the root hash, which in our simulation is
 &quot;01234567&quot;.&nbsp; You ask the server to prove to you that your record &quot;2&quot; is in 
 the tree.&nbsp; What the server returns to you are the hashes &quot;3&quot;, &quot;01&quot;, &quot;4567&quot; 
 as illustrated here:</p>
-<p><img border="0" src="tree2.png" width="656" height="230"></p>
+<p><img border="0" src="consistency1.png" width="644" height="221"></p>
 <p>Using this information (including the right-left flags that are sent back 
 along with the hashes), the proof is that:</p>
 <ul>
@@ -161,17 +161,26 @@ provides some useful diagrams on how a consistency proof works, but I found it
 confusing to figure out, so I'll try and explain it a bit better here.&nbsp; 
 Using their example (but my simulated hash numbering), we'll start with 3 
 records:</p>
-<p>First three records are created:</p>
+<p>First three records &quot;012&quot; are created:</p>
 <p><img border="0" src="r1.png" width="283" height="161"></p>
-<p>A fourth record is added at some point, resulting in this tree:</p>
+<p>A fourth record &quot;3&quot; is added at some point, resulting in this tree:</p>
 <p><img border="0" src="tree3.png" width="325" height="164"></p>
-<p>Two more records are added:</p>
+<p>Two more records &quot;45&quot; are added:</p>
 <p><img border="0" src="r2.png" width="531" height="224"></p>
-<p>And finally, one more record is added:</p>
+<p>And finally, one more record &quot;6&quot; is added:</p>
 <p><img border="0" src="r3.png" width="606" height="219"></p>
+<p>For each of the sub-trees (record sets) we appended:</p>
+<p>012<br>
+3<br>
+45<br>
+6</p>
+<p>we have root hashes for the tree after the sub-tree was appended.&nbsp; We 
+now want to verify the root hashes when those sub-trees were added can be 
+reconstructed, even though the full tree's root hash has changed.&nbsp; This 
+verifies the order of the records and that the data associated with the record's 
+hash hasn't changed, either on the authority server or the client's machine.</p>
 <h4>Consistency Proof Walkthrough</h4>
-<p>Now, we want to be able to verify the first three trees still exist and their 
-leaves are in the correct order.&nbsp; This is done by re-creating the hashes 
+<p>A consistency proof recreates the hashes 
 for each sub-tree given the new tree (last figure above):</p>
 <ol>
 	<li>The first tree has a root hash of &quot;012&quot;.</li>
@@ -182,30 +191,31 @@ for each sub-tree given the new tree (last figure above):</p>
 <p><u>Consistency Proof of the First Tree</u></p>
 <p>What do we need to do to verify that the first tree, with its 3 leaves, still 
 exists in the new tree?</p>
-<p><img border="0" src="consistency1.png" width="609" height="221"></p>
+<p><img border="0" src="consistency7.png" width="647" height="224"></p>
 <p>As the above diagram illustrates, we need the hashes of 2 nodes &quot;01&quot; and &quot;2&quot; 
 in order to reconstruct the first tree's old root has of &quot;012&quot;.</p>
 <p><u>Consistency Proof of the Second Tree</u></p>
-<p>The root hash when we added the second tree, which was one leaf &quot;3&quot;, was the 
+<p>The root hash when we added the second tree, which appended one leaf &quot;3&quot; 
+for a total of 4 leaves now in the tree, was the 
 hash for the node &quot;0123&quot;.</p>
-<p><img border="0" src="consistency2.png" width="611" height="222"></p>
+<p>&nbsp;</p>
 <p>The consistency proof is simply the node that represents &quot;0123&quot;.</p>
 <p><u>Consistency Proof of the Third Tree</u></p>
 <p>The third tree added two nodes &quot;45&quot; and the root hash at that point was 
 &quot;012345&quot;.&nbsp; The consistency proof obtains that for us:</p>
-<p><img border="0" src="consistency3.png" width="607" height="222"></p>
+<p><img border="0" src="consistency3.png" width="648" height="224"></p>
 <p><u>Consistency Proof Another Scenario</u></p>
 <p>Let's say we added leaves &quot;4&quot;, &quot;5&quot;, and &quot;6&quot; separately.&nbsp; When we added 
 the leaf for &quot;4&quot;, we were given the hash for the node &quot;01234&quot; for the 5 leaves 
 in the tree at that point.&nbsp; Now that we have 7 leaves in the tree, here's 
 the pieces needed to reconstruct the old root hash of &quot;01234&quot;:</p>
-<p><img border="0" src="consistency4.png" width="604" height="225"></p>
+<p><img border="0" src="consistency4.png" width="644" height="227"></p>
 <p><u>Consistency Proof Last Scenario</u></p>
 <p>This scenario differs from all the rest because three nodes are required to 
 construct the original root hash.&nbsp; Given a tree with 8 leaves, where the 
 7th leaf (node &quot;6&quot;) was added, the root hash at that point was the hash for 
 &quot;0123456&quot;.&nbsp; The reconstruction of this hash requires these nodes:</p>
-<p><img border="0" src="consistency5.png" width="644" height="226"></p>
+<p><img border="0" src="consistency5.png" width="645" height="219"></p>
 <h4>Reconstructing the Old Root Hash</h4>
 <p>The last example above illustrates how the old root hash &quot;0123456&quot; is 
 reconstructed from the the list of nodes in the consistency proof.&nbsp; Here, 
@@ -276,7 +286,7 @@ should help (note that level 3 is actually not representing 8 leaves, because
 all 8 leaves haven't been added yet):</p>
 <p><img border="0" src="r4.png" width="603" height="221"></p>
 <p>Also, set <i>k</i>, the number of leaves for this node (<u>nodes have to 
-retain their leaf count because the last leaf of a tree might be missing.</u>)</p>
+compute their leaf count because the last leaf of a tree might be missing.</u>)</p>
 <p>Also set the initial sibling node (SN) to the sibling of the node acquired by 
 Rule 1, if it exists.</p>
 <p>if m-k == 0, proceed with rule 3.</p>
@@ -335,7 +345,7 @@ in the proof) is encountered and should always be the left sibling.&nbsp; </p>
 node is encountered, whose hash should be the same as the current tree's hash.</p>
 <p>For example, given this consistency proof to the old hash for the tree 
 representing &quot;01234&quot; (this is the more interesting example):</p>
-<p><img border="0" src="consistency6.png" width="645" height="222"></p>
+<p><img border="0" src="consistency6.png" width="648" height="223"></p>
 <p>The nodes involved in the remainder of the proof, so that we obtain the root 
 hash, are the hashes of the nodes &quot;5&quot; and &quot;67&quot;.&nbsp; We need &quot;5&quot; to obtain 
 &quot;45&quot;, and we need &quot;67&quot; to obtain &quot;4567&quot;.&nbsp; Interesting, isn't it!</p>
@@ -350,6 +360,105 @@ hash, are the hashes of the nodes &quot;5&quot; and &quot;67&quot;.&nbsp; We nee
 information for validating records.&nbsp; The data required to validate a proof 
 is also very efficient.</p>
 <p>todo - fill in with some analysis.</p>
+<h2>Merkle Tree Implementation</h2>
+<h4>Hash Provider</h4>
+<h2>Unit Tests</h2>
+<h2>The Demo App</h2>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<h2>Conclusion</h2>
+<p>Writing this article was definitely the embodiment of the experience &quot;you 
+only understand it if you can teach it.&quot;&nbsp; It took a lot of research and 
+digging to understand not just the algorithms, specifically for the consistency 
+proof.&nbsp; More importantly, understanding the &quot;why&quot; was not intuitively 
+obvious.&nbsp; I ended up doing a mental Q&amp;A session with myself, which I 
+decided to add here just so you can see what my basic questions were and how I 
+decided to answer them, at least for myself.&nbsp; Some of these answer may not 
+be very good, some may go down unnecessary rabbit holes, etc., so keep in mind 
+that this represents a snapshot of my own investigation before even starting 
+this article.</p>
+<p>Data Synchronization Q&amp;A</p>
+<ul>
+	<li>As the &quot;client&quot;, you're downloading a large file, say 10GB, spread 
+	across peers in chunks of 4096 bytes.</li>
+	<li>You need a trusted authority server to tell you whether each block is 
+	valid.</li>
+	<li>From the server, you can be given the root hash and, as each block comes 
+	in, you start filling in the Merkle tree yourself. </li>
+	<li><u>However, you'll need all the data downloaded before you can complete 
+	the tree to verify the root.</u></li>
+	<li>Instead, you can ask the server to send you the path of a hashed chunk 
+	(the leaf) to the root hash and verify it yourself. This enables you to 
+	verify each chunk and if it is faulty, request it from somewhere else, 
+	simultaneously while you are downloading other chunks. Furthermore, you're 
+	not maintaining all the hashes of the chunks and building the entire Merkle 
+	tree yourself. So it's faster for verifying a chunk, and it's less memory on 
+	your part to hold the entire Merkle tree.</li>
+	<li>The server (as trusted authority) doesn't hold the data, but it has to 
+	have the Merkle tree, including leaf hashes.</li>
+</ul>
+<p>With regards to data synchronization, you basically have three options:</p>
+<ol>
+	<li>Download all the data so you can verify the Merkle root hash</li>
+	<li>Download from a trusted authority the Merkle tree so you can test with 
+	an incomplete recordset.</li>
+	<li>Ask the server to perform an audit proof on a particular leaf.</li>
+</ol>
+<p>Validation Q&amp;A:</p>
+<p>Q1: Why not just ask the server if the leaf exists in tree with the specific 
+root?</p>
+<p>Q2: Why should the server even bother with storing a Merkle tree of the leaf 
+hashes? (see answer to Q4 as well)</p>
+<p>A1: You could do that, but the SHA256 hash is only 32 bytes, and while this 
+represents a huge number of unique hashes (2^256), 1.15*10^77, hashing node pair 
+hashes as we walk up the tree strongly validates that the hash under question 
+belongs to the correct tree.&nbsp; Furthermore, the audit proof verifies the 
+particular order of the record in relationship to the other leaves.&nbsp; <u>We 
+don't just want to know that a leaf exists, we want to verify that it exists in 
+a particular location in the tree.</u></p>
+<p>A2: Let's say you have a large dataset divided into small chunks. First, you 
+may not be maintaining the entire dataset but only the portion you are 
+responsible for. If a change occurs in that chunk, you can recalculate the root 
+hash knowing only the left-right branches to the root.</p>
+<p>The side-effect to this is that you also only need to maintain the left-right 
+branches for your chunks, rather than the entire Merkle tree (including all the 
+leaf hashes of chunks that you don't know or care about.)</p>
+<p>To synchronize, another user asks you to verify your root hash against their 
+root hash. If different, the left/right child hashes are requested, and the 
+process iterates the mismatches until the chunks on your end that have changed 
+are identified. Now you only send your changed chunk to the other user, and you 
+are both synchronized again.</p>
+<p>Detect Collisions Q&amp;A</p>
+<p>Q3: What happens if more than one user modifies the same chunk (based on the 
+idea that in a distributed system, you want to replicate the data across many 
+peers for resiliency.)</p>
+<p>A1: Only one peer may have the authority to change the data</p>
+<p>A2: Hashes can be time stamped, and you accept only the most recent change, 
+discarding anything else</p>
+<p>A3: Differences are merged (either automatically or requiring manual 
+intervention.)</p>
+<p>A4: You accept only the oldest change, and discard anything more recent</p>
+<p>A5: Technically, a chunk should never be changed. If a change is required, 
+this should be logged as a new transaction so that there is an auditable trail 
+of changes (not the same think as a Merkle audit). Given that, only specified 
+authorities should be allowed to modify a transaction.</p>
+<p>A6: Some sort of blocking mechanism might be used to prevent data from being 
+modified simultaneously. For example, you could be given a &quot;change key&quot; and when 
+you submit the change, if your change key doesn't match the current change key, 
+your change is rejected, requiring you to syncrhonize your data, acquire a new 
+change key, and submit your changes again.</p>
+<p>A7: The salient point to this is that, if the chunk sizes are small, the 
+likelihood that your change will collide with someone else's is small.</p>
+<p>Why Proofs Q&amp;A</p>
+<p>Q4: Why should the server send you the hash audit trail of to verify a chunk, 
+rather than just sending you a &quot;yes/no&quot; response?</p>
+<p>A: This is your way of verifying that the server hasn't been compromised -- 
+if it simply said &quot;yes&quot;, how would you know you can trust it? By sending you the 
+left-right hashes, the server is telling you &quot;here is how I verified your 
+request.&quot; A server that is trying to get you to believe your chunk has is valid 
+cannot send you &quot;any&quot; audit trail hash because that would give a different root 
+hash.<br>
+&nbsp;</p>
 <p>&nbsp;</p>
 <h2>References</h2>
 <p><sup>1</sup> - <a href="https://en.wikipedia.org/wiki/Ralph_Merkle">Ralph 

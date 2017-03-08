@@ -38,11 +38,6 @@ namespace FlowSharpLib
             return new Point(p.X + p2.X, p.Y + p2.Y);
         }
 
-        public static int Abs(this int n)
-        {
-            return Math.Abs(n);
-        }
-
         public static int Sign(this int n)
         {
             return Math.Sign(n);
@@ -87,46 +82,6 @@ namespace FlowSharpLib
         public static Rectangle Union(this Rectangle r, Rectangle r2)
         {
             return Rectangle.Union(r, r2);
-        }
-
-        public static Point TopLeftCorner(this Rectangle r)
-        {
-            return new Point(r.Left, r.Top);
-        }
-
-        public static Point TopRightCorner(this Rectangle r)
-        {
-            return new Point(r.Right, r.Top);
-        }
-
-        public static Point BottomLeftCorner(this Rectangle r)
-        {
-            return new Point(r.Left, r.Bottom);
-        }
-
-        public static Point BottomRightCorner(this Rectangle r)
-        {
-            return new Point(r.Right, r.Bottom);
-        }
-
-        public static Point LeftMiddle(this Rectangle r)
-        {
-            return new Point(r.Left, r.Top + r.Height / 2);
-        }
-
-        public static Point RightMiddle(this Rectangle r)
-        {
-            return new Point(r.Right, r.Top + r.Height / 2);
-        }
-
-        public static Point TopMiddle(this Rectangle r)
-        {
-            return new Point(r.Left + r.Width / 2, r.Top);
-        }
-
-        public static Point BottomMiddle(this Rectangle r)
-        {
-            return new Point(r.Left + r.Width / 2, r.Bottom);
         }
 
         /// <summary>
