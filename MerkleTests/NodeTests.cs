@@ -117,16 +117,16 @@ namespace MerkleTests
             tree.AppendLeaves(new MerkleHash[] { l1, l2, l3, l4 });
             MerkleHash rootHash = tree.BuildTree();
 
-            List<MerkleAuditHash> auditTrail = tree.Audit(l1);
+            List<MerkleProofHash> auditTrail = tree.AuditProof(l1);
             Assert.IsTrue(MerkleTree.VerifyAudit(rootHash, l1, auditTrail));
 
-            auditTrail = tree.Audit(l2);
+            auditTrail = tree.AuditProof(l2);
             Assert.IsTrue(MerkleTree.VerifyAudit(rootHash, l2, auditTrail));
 
-            auditTrail = tree.Audit(l3);
+            auditTrail = tree.AuditProof(l3);
             Assert.IsTrue(MerkleTree.VerifyAudit(rootHash, l3, auditTrail));
 
-            auditTrail = tree.Audit(l4);
+            auditTrail = tree.AuditProof(l4);
             Assert.IsTrue(MerkleTree.VerifyAudit(rootHash, l4, auditTrail));
         }
 
@@ -155,7 +155,7 @@ namespace MerkleTests
             MerkleHash rootHash = tree.BuildTree();
             tree.FixOddNumberLeaves();
             MerkleHash rootHashAfterFix = tree.BuildTree();
-            Assert.IsTrue(rootHash == rootHashAfterFix);
+            Assert.IsTrue(rootHash != rootHashAfterFix);
         }
 
         [TestMethod]
@@ -208,32 +208,31 @@ namespace MerkleTests
                 // After adding a leaf, verify that all the old root hashes exist.
                 oldRoots.ForEachWithIndex((oldRootHash, n) =>
                 {
-                    List<MerkleNode> proof = tree.ConsistencyCheck(n+2);
-                    MerkleHash hash;
+                    List<MerkleProofHash> proof = tree.ConsistencyProof(n+2);
+                    MerkleHash hash, lhash, rhash;
 
                     if (proof.Count > 1)
                     {
-                        hash = proof[proof.Count - 2].Hash;
+                        lhash = proof[proof.Count - 2].Hash;
                         int hidx = proof.Count - 1;
-                        MerkleHash rhash = MerkleTree.ComputeHash(hash, proof[hidx].Hash);
+                        hash = rhash = MerkleTree.ComputeHash(lhash, proof[hidx].Hash);
                         hidx -= 2;
 
                         // foreach (var nextHashNode in proof.Skip(1))
                         while (hidx >= 0)
                         {
-                            MerkleHash lhash = proof[hidx].Hash;
-                            rhash = MerkleTree.ComputeHash(lhash, rhash);
+                            lhash = proof[hidx].Hash;
+                            hash = rhash = MerkleTree.ComputeHash(lhash, rhash);
+                            
                             --hidx;
                         }
-
-                        hash = rhash;
                     }
                     else
                     {
                         hash = proof[0].Hash;
                     }
 
-                    Assert.IsTrue(hash == oldRootHash, "Old root hash not found for index " + i);
+                    Assert.IsTrue(hash == oldRootHash, "Old root hash not found for index " + i + " m = " + (n+2).ToString());
                     
                 });
 

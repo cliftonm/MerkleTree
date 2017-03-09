@@ -104,13 +104,13 @@ namespace Clifton.Blockchain
         //}
 
         /// <summary>
-        /// Returns the audit trail hashes to reconstruct the root hash.
+        /// Returns the audit proof hashes to reconstruct the root hash.
         /// </summary>
         /// <param name="leafHash">The leaf hash we want to verify exists in the tree.</param>
         /// <returns>The audit trail of hashes needed to create the root, or an empty list if the leaf hash doesn't exist.</returns>
-        public List<MerkleAuditHash> Audit(MerkleHash leafHash)
+        public List<MerkleProofHash> AuditProof(MerkleHash leafHash)
         {
-            List<MerkleAuditHash> auditTrail = new List<MerkleAuditHash>();
+            List<MerkleProofHash> auditTrail = new List<MerkleProofHash>();
 
             var leafNode = FindLeaf(leafHash);
 
@@ -129,12 +129,12 @@ namespace Clifton.Blockchain
         /// This verifies that the prior data has not been changed and that leaf order has been preserved.
         /// m is the number of leaves for which to do a consistency check.
         /// </summary>
-        public List<MerkleNode> ConsistencyCheck(int m)
+        public List<MerkleProofHash> ConsistencyProof(int m)
         {
             // Rule 1:
             // Find the leftmost node of the tree from which we can start our consistency proof.
             // Set k, the number of leaves for this node.
-            List<MerkleNode> hashNodes = new List<MerkleNode>();
+            List<MerkleProofHash> hashNodes = new List<MerkleProofHash>();
             int idx = (int)Math.Log(m, 2);
 
             // Get the leftmost node.
@@ -148,7 +148,7 @@ namespace Clifton.Blockchain
             }
 
             int k = node.Leaves().Count();
-            hashNodes.Add(node);
+            hashNodes.Add(new MerkleProofHash(node.Hash, MerkleProofHash.Branch.OldRoot));
 
             if (m == k)
             {
@@ -172,13 +172,13 @@ namespace Clifton.Blockchain
 
                     if (m - k == sncount)
                     {
-                        hashNodes.Add(sn);
+                        hashNodes.Add(new MerkleProofHash(sn.Hash, MerkleProofHash.Branch.OldRoot));
                         break;
                     }
 
                     if (m - k > sncount)
                     {
-                        hashNodes.Add(sn);
+                        hashNodes.Add(new MerkleProofHash(sn.Hash, MerkleProofHash.Branch.OldRoot));
                         sn = sn.Parent.RightNode;
                         k += sncount;
                     }
@@ -197,15 +197,15 @@ namespace Clifton.Blockchain
         /// <summary>
         /// Verify that if we walk up the tree from a particular leaf, we encounter the expected root hash.
         /// </summary>
-        public static bool VerifyAudit(MerkleHash rootHash, MerkleHash leafHash, List<MerkleAuditHash> auditTrail)
+        public static bool VerifyAudit(MerkleHash rootHash, MerkleHash leafHash, List<MerkleProofHash> auditTrail)
         {
             Contract(() => auditTrail.Count > 0, "Audit trail cannot be empty.");
             MerkleHash testHash = leafHash;
 
             // TODO: Inefficient - compute hashes directly.
-            foreach (MerkleAuditHash auditHash in auditTrail)
+            foreach (MerkleProofHash auditHash in auditTrail)
             {
-                testHash = auditHash.Direction == MerkleAuditHash.Branch.Left ?
+                testHash = auditHash.Direction == MerkleProofHash.Branch.Left ?
                     MerkleHash.Create(testHash.Value.Concat(auditHash.Hash.Value).ToArray()) :
                     MerkleHash.Create(auditHash.Hash.Value.Concat(testHash.Value).ToArray());
             }
@@ -213,31 +213,32 @@ namespace Clifton.Blockchain
             return rootHash == testHash;
         }
 
-        /// <summary>
-        /// As an alternate consistency check, we verify that walking up the tree from a particular leaf, we encounter
-        /// along the way an "old" root hash.
-        /// </summary>
-        public static bool VerifyPartialAudit(MerkleHash rootHash, MerkleHash leafHash, List<MerkleAuditHash> auditTrail)
+        public static bool VerifyConsistency(MerkleHash oldRootHash, List<MerkleProofHash> proof)
         {
-            Contract(() => auditTrail.Count > 0, "Audit trail cannot be empty.");
-            bool ret = false;
-            MerkleHash testHash = leafHash;
+            MerkleHash hash, lhash, rhash;
 
-            // TODO: Inefficient - compute hashes directly.
-            foreach (MerkleAuditHash auditHash in auditTrail)
+            if (proof.Count > 1)
             {
-                testHash = auditHash.Direction == MerkleAuditHash.Branch.Left ?
-                    MerkleHash.Create(testHash.Value.Concat(auditHash.Hash.Value).ToArray()) :
-                    MerkleHash.Create(auditHash.Hash.Value.Concat(testHash.Value).ToArray());
+                lhash = proof[proof.Count - 2].Hash;
+                int hidx = proof.Count - 1;
+                hash = rhash = MerkleTree.ComputeHash(lhash, proof[hidx].Hash);
+                hidx -= 2;
 
-                if (rootHash == testHash)
+                // foreach (var nextHashNode in proof.Skip(1))
+                while (hidx >= 0)
                 {
-                    ret = true;
-                    break;
+                    lhash = proof[hidx].Hash;
+                    hash = rhash = MerkleTree.ComputeHash(lhash, rhash);
+
+                    --hidx;
                 }
             }
+            else
+            {
+                hash = proof[0].Hash;
+            }
 
-            return ret;
+            return hash == oldRootHash;
         }
 
         public static MerkleHash ComputeHash(MerkleHash left, MerkleHash right)
@@ -245,14 +246,21 @@ namespace Clifton.Blockchain
             return MerkleHash.Create(left.Value.Concat(right.Value).ToArray());
         }
 
-        protected void BuildAuditTrail(List<MerkleAuditHash> auditTrail, MerkleNode parent, MerkleNode child)
+        protected void BuildAuditTrail(List<MerkleProofHash> auditTrail, MerkleNode parent, MerkleNode child)
         {
             if (parent != null)
             {
                 Contract(() => child.Parent == parent, "Parent of child is not expected parent.");
                 var nextChild = parent.LeftNode == child ? parent.RightNode : parent.LeftNode;
-                var direction = parent.LeftNode == child ? MerkleAuditHash.Branch.Left : MerkleAuditHash.Branch.Right;
-                auditTrail.Add(new MerkleAuditHash(nextChild.Hash, direction));
+                var direction = parent.LeftNode == child ? MerkleProofHash.Branch.Left : MerkleProofHash.Branch.Right;
+
+                // For the last leaf, the right node may not exist.  In that case, we ignore it because it's
+                // the hash we are given to verify.
+                if (nextChild != null)
+                {
+                    auditTrail.Add(new MerkleProofHash(nextChild.Hash, direction));
+                }
+
                 BuildAuditTrail(auditTrail, child.Parent.Parent, child.Parent);
             }
         }

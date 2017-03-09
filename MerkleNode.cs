@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 
+using Clifton.Core.ExtensionMethods;
+
 namespace Clifton.Blockchain
 {
     public class MerkleNode : IEnumerable<MerkleNode>
@@ -14,6 +16,8 @@ namespace Clifton.Blockchain
         public MerkleNode LeftNode { get; protected set; }
         public MerkleNode RightNode { get; protected set; }
         public MerkleNode Parent { get; protected set; }
+
+        public bool IsLeaf { get { return LeftNode == null && RightNode == null; } }
 
         public MerkleNode()
         {
@@ -35,6 +39,7 @@ namespace Clifton.Blockchain
             LeftNode = left;
             RightNode = right;
             LeftNode.Parent = this;
+            RightNode.IfNotNull(r => r.Parent = this);
             MergeText(left, right);
             ComputeHash();
         }
@@ -140,10 +145,14 @@ namespace Clifton.Blockchain
                 return true;
             }
 
-            MerkleTree.Contract(() => LeftNode != null, "At least left node must be assigned.");
+            if (RightNode == null)
+            {
+                return Hash.Equals(LeftNode.Hash);
+            }
+
+            MerkleTree.Contract(() => LeftNode != null, "Left branch must be a node if right branch is a node.");
             SHA256 sha256 = SHA256Managed.Create();
-            MerkleHash rightHash = RightNode == null ? LeftNode.Hash : RightNode.Hash;
-            byte[] hash = sha256.ComputeHash(LeftNode.Hash.Value.Concat(rightHash.Value).ToArray());
+            byte[] hash = sha256.ComputeHash(LeftNode.Hash.Value.Concat(RightNode.Hash.Value).ToArray());
 
             return Hash.Equals(hash);
         }
@@ -165,23 +174,27 @@ namespace Clifton.Blockchain
 
             // Alternativately, do not repeat the left node, but carry the left node's hash up.
             // This process does not break the edge case described above.
-            Hash = RightNode == null ? LeftNode.Hash : MerkleHash.Create(LeftNode.Hash.Value.Concat(RightNode.Hash.Value).ToArray());
+            // We're implementing this version because the consistency check unit tests pass when we don't simulate
+            // a right-hand node.
+            Hash = RightNode == null ?
+                LeftNode.Hash : //MerkleHash.Create(LeftNode.Hash.Value.Concat(LeftNode.Hash.Value).ToArray()) : 
+                MerkleHash.Create(LeftNode.Hash.Value.Concat(RightNode.Hash.Value).ToArray());
             Parent?.ComputeHash();      // Recurse, because out hash has changed.
         }
 
         protected void MergeText(MerkleNode left, MerkleNode right)
         {
-            Text = left.Text;
+            // Useful for debugging, we combine the text of the two nodes.
+            string text = (left?.Text ?? "") + (right?.Text ?? "");
 
-            if (RightNode != null)
+            if (!string.IsNullOrEmpty(text))
             {
-                RightNode.Parent = this;
-
-                // Useful for debugging, we combine the text of the two nodes.
-                if (Text != null)
+                if (right == null)
                 {
-                    Text += right.Text ?? "";
+                    text = text.Parens();
                 }
+
+                Text = text;
             }
         }
     }

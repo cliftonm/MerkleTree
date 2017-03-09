@@ -12,18 +12,19 @@ using Clifton.Blockchain;
 
 namespace MerkleTreeDemo
 {
-    public partial class Form1 : Form
+    public partial class Demo : Form
     {
         public const int LEAF_Y = 300;
         public const int V_OFFSET = 60;
         public const int X_OFFSET = 80;
         public const int NODE_WIDTH = 75;
         public const int NODE_HEIGHT = 30;
+        public const string CRLF = "\r\n";
         public readonly Color LEAF_COLOR = Color.LightGreen;
         public readonly Color NODE_COLOR = Color.LightBlue;
         public readonly Color ROOT_COLOR = ControlPaint.LightLight(Color.Red);
 
-        public Form1()
+        public Demo()
         {
             InitializeComponent();
             InitializeFlowSharp();
@@ -58,9 +59,6 @@ namespace MerkleTreeDemo
             MerkleTree tree = new MerkleTree();
             CreateTree(tree, (int)nudNumLeaves.Value);
             DrawTree(tree);
-            //AuditProofDemo();
-            //WebSocketHelpers.ClearCanvas();
-            // ConsistencyProofDemo();
         }
 
         public void AuditProofDemo()
@@ -157,22 +155,37 @@ namespace MerkleTreeDemo
             // when computing the hash.
             MerkleNode node = tree.RootNode.First(t => t.Text == text);
             Highlight(node, "Orange");
-            List<MerkleAuditHash> proof = tree.Audit(node.Hash);
+            List<MerkleProofHash> proof = tree.AuditProof(node.Hash);
+            bool ret = MerkleTree.VerifyAudit(tree.RootNode.Hash, node.Hash, proof);
+            lblAuditPassFail.Text = ret ? "Pass" : "Fail";
+            tbAuditTrail.Clear();
 
             foreach (var auditHash in proof)
             {
                 // We use First because a tree with an odd number of leaves will duplicate the last leaf
                 // when computing the hash.
                 MerkleNode n = tree.RootNode.First(t => t.Hash == auditHash.Hash);
+                tbAuditTrail.AppendText(n.Text + CRLF);
                 Highlight(n);
             }
         }
 
-        protected void DrawConsistencyProof(MerkleTree tree, MerkleHash originalDataHash, int m, MerkleHash newRootHash)
+        protected void DrawConsistencyProof(MerkleTree tree, MerkleNode oldTreeRoot, int m, MerkleHash newRootHash)
         {
             tree.RootNode.Leaves().Take(m).ForEach(n => Highlight(n, "Orange"));
-            List<MerkleNode> proof = tree.ConsistencyCheck(m);
-            proof.ForEach(node => Highlight(node));
+            List<MerkleProofHash> proof = tree.ConsistencyProof(m);
+            bool ret = MerkleTree.VerifyConsistency(oldTreeRoot.Hash, proof);
+            lblConsistencyPassFail.Text = ret ? "Pass" : "Fail";
+            tbConsistencyTrail.Clear();
+
+            proof.ForEach(hash =>
+            {
+                var node = tree.RootNode.First(t => t.Hash == hash.Hash);
+                Highlight(node);
+                tbConsistencyTrail.AppendText(node.Text + CRLF);
+            });
+
+            tbConsistencyTrail.AppendText(oldTreeRoot.Text + " = old hash");
         }
 
         protected List<Rectangle> DrawLeaves(List<MerkleNode> leaves)
@@ -223,7 +236,6 @@ namespace MerkleTreeDemo
                 Rectangle rupper = shapesUpper[n2];
                 var topMiddle = rlower.TopMiddle();
                 var bottomMiddle = rupper.BottomMiddle();
-                // WebSocketHelpers.DropConnector("DiagonalConnector", bottomMiddle.X, bottomMiddle.Y, topMiddle.X, topMiddle.Y);
                 WebSocketHelpers.DropConnector("DynamicConnectorUD", "", bottomMiddle.X, bottomMiddle.Y, topMiddle.X, topMiddle.Y);
                 n++;
                 n2 = n2 + ((n % 2) == 0 ? 1 : 0);
@@ -242,6 +254,39 @@ namespace MerkleTreeDemo
             MerkleTree tree = new MerkleTree();
             CreateTree(tree, (int)nudNumLeaves.Value);
             DrawTree(tree);
+            nudAuditProofNodeNumber.Maximum = nudNumLeaves.Value - 1;
+            nudConsistencyProofNumLeaves.Maximum = nudNumLeaves.Value - 1;
+        }
+
+        private void btnAuditProof_Click(object sender, EventArgs e)
+        {
+            WebSocketHelpers.ClearCanvas();
+            MerkleTree tree = new MerkleTree();
+            CreateTree(tree, (int)nudNumLeaves.Value);
+            DrawTree(tree);
+            int numLeaves = (int)nudAuditProofNodeNumber.Value;
+            tree.RootNode.Leaves().Take(numLeaves + 1).ForEach(n => Highlight(n, "Orange"));
+            DrawAuditProof(numLeaves.ToString(), tree);
+        }
+
+        private void btnConsistencyProof_Click(object sender, EventArgs e)
+        {
+            WebSocketHelpers.ClearCanvas();
+            MerkleTree tree = new MerkleTree();
+            CreateTree(tree, (int)nudNumLeaves.Value);
+            DrawTree(tree);
+            int numLeaves = (int)nudConsistencyProofNumLeaves.Value;
+
+            // Reconstruct the old root hash by creating a tree of "m" leaves.
+            // We do this because in the demo, we haven't given the user the ability to append trees, so we
+            // simulate that process here.
+            MerkleTree oldTree = new MerkleTree();
+            CreateTree(oldTree, numLeaves);
+
+            // For demo purposes, remove any () that were created by left-only branches.
+            oldTree.RootNode.Text = oldTree.RootNode.Text.Replace("(", "").Replace(")", "");
+
+            DrawConsistencyProof(tree, oldTree.RootNode, numLeaves, null);
         }
     }
 }
