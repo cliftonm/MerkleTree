@@ -145,7 +145,6 @@ namespace MerkleTreeDemo
                 DrawConnectors(shapesLower, shapesUpper);
                 shapesLower = shapesUpper;
                 parents = parents.Select(p => p?.Parent).Where(p=>p != null).Distinct();
-                // CreateParentTags(parents);
             }
         }
 
@@ -165,27 +164,69 @@ namespace MerkleTreeDemo
                 // We use First because a tree with an odd number of leaves will duplicate the last leaf
                 // when computing the hash.
                 MerkleNode n = tree.RootNode.First(t => t.Hash == auditHash.Hash);
-                tbAuditTrail.AppendText(n.Text + CRLF);
+                // tbAuditTrail.AppendText(n.Text + CRLF);
                 Highlight(n);
+            }
+
+            var auditPairs = MerkleTree.AuditHashPairs(node.Hash, proof);
+
+            foreach (var pair in auditPairs)
+            {
+                MerkleNode left = tree.RootNode.First(t => t.Hash == pair.Item1);
+                MerkleNode right = tree.RootNode.First(t => t.Hash == pair.Item2);
+                tbAuditTrail.AppendText(left.Text + " + " + right.Text + " = " + left.Text + right.Text + CRLF);
             }
         }
 
         protected void DrawConsistencyProof(MerkleTree tree, MerkleNode oldTreeRoot, int m, MerkleHash newRootHash)
         {
             tree.RootNode.Leaves().Take(m).ForEach(n => Highlight(n, "Orange"));
-            List<MerkleProofHash> proof = tree.ConsistencyProof(m);
-            bool ret = MerkleTree.VerifyConsistency(oldTreeRoot.Hash, proof);
+
+            List<MerkleProofHash> proofToOldRoot = tree.ConsistencyProof(m);
+            bool ret = MerkleTree.VerifyConsistency(oldTreeRoot.Hash, proofToOldRoot);
             lblConsistencyPassFail.Text = ret ? "Pass" : "Fail";
+
             tbConsistencyTrail.Clear();
 
-            proof.ForEach(hash =>
+            proofToOldRoot.ForEach(hash =>
             {
                 var node = tree.RootNode.First(t => t.Hash == hash.Hash);
                 Highlight(node);
                 tbConsistencyTrail.AppendText(node.Text + CRLF);
             });
 
-            tbConsistencyTrail.AppendText(oldTreeRoot.Text + " = old hash");
+            tbConsistencyTrail.AppendText(oldTreeRoot.Text + " = old root" + CRLF);
+
+            // The remainder:
+
+            var lastNode = proofToOldRoot.Last();
+            List<MerkleProofHash> proofToNewRoot = tree.ConsistencyAuditProof(lastNode.Hash);
+
+            foreach (var auditHash in proofToNewRoot)
+            {
+                // We use First because a tree with an odd number of leaves will duplicate the last leaf
+                // when computing the hash.
+                MerkleNode n = tree.RootNode.First(t => t.Hash == auditHash.Hash);
+                // tbAuditTrail.AppendText(n.Text + CRLF);
+
+                if (!proofToOldRoot.Any(ph => ph.Hash == n.Hash))
+                {
+                    Highlight(n, "Purple");
+                }
+            }
+
+            var auditPairs = MerkleTree.AuditHashPairs(lastNode.Hash, proofToNewRoot);
+            string lastHash = "";
+
+            foreach (var pair in auditPairs)
+            {
+                MerkleNode left = tree.RootNode.First(t => t.Hash == pair.Item1);
+                MerkleNode right = tree.RootNode.First(t => t.Hash == pair.Item2);
+                lastHash = left.Text + right.Text;
+                tbConsistencyTrail.AppendText(left.Text + " + " + right.Text + " = " + lastHash + CRLF);
+            }
+
+            tbConsistencyTrail.AppendText(lastHash + " = new root" + CRLF);
         }
 
         protected List<Rectangle> DrawLeaves(List<MerkleNode> leaves)
@@ -254,6 +295,8 @@ namespace MerkleTreeDemo
             MerkleTree tree = new MerkleTree();
             CreateTree(tree, (int)nudNumLeaves.Value);
             DrawTree(tree);
+
+            // Adjust maximums of our "proof" explorers.
             nudAuditProofNodeNumber.Maximum = nudNumLeaves.Value - 1;
             nudConsistencyProofNumLeaves.Maximum = nudNumLeaves.Value - 1;
         }
@@ -264,9 +307,9 @@ namespace MerkleTreeDemo
             MerkleTree tree = new MerkleTree();
             CreateTree(tree, (int)nudNumLeaves.Value);
             DrawTree(tree);
-            int numLeaves = (int)nudAuditProofNodeNumber.Value;
-            tree.RootNode.Leaves().Take(numLeaves + 1).ForEach(n => Highlight(n, "Orange"));
-            DrawAuditProof(numLeaves.ToString(), tree);
+            int leafNum = (int)nudAuditProofNodeNumber.Value;
+            Highlight(tree.RootNode.Leaves().Single(n=>n.Text == leafNum.ToString()), "Orange");
+            DrawAuditProof(leafNum.ToString(), tree);
         }
 
         private void btnConsistencyProof_Click(object sender, EventArgs e)

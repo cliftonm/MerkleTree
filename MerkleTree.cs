@@ -125,6 +125,20 @@ namespace Clifton.Blockchain
         }
 
         /// <summary>
+        /// Completes the consistency proof with an audit proof using the last node in the consistency proof.
+        /// </summary>
+        public List<MerkleProofHash> ConsistencyAuditProof(MerkleHash nodeHash)
+        {
+            List<MerkleProofHash> auditTrail = new List<MerkleProofHash>();
+
+            var node = RootNode.Single(n => n.Hash == nodeHash);
+            var parent = node.Parent;
+            BuildAuditTrail(auditTrail, parent, node);
+
+            return auditTrail;
+        }
+
+        /// <summary>
         /// Verifies ordering and consistency of the first n leaves, such that we reach the expected subroot.
         /// This verifies that the prior data has not been changed and that leaf order has been preserved.
         /// m is the number of leaves for which to do a consistency check.
@@ -211,6 +225,35 @@ namespace Clifton.Blockchain
             }
 
             return rootHash == testHash;
+        }
+
+        /// <summary>
+        /// For demo / debugging purposes, we return the pairs of hashes used to verify the audit proof.
+        /// </summary>
+        public static List<Tuple<MerkleHash, MerkleHash>> AuditHashPairs(MerkleHash leafHash, List<MerkleProofHash> auditTrail)
+        {
+            Contract(() => auditTrail.Count > 0, "Audit trail cannot be empty.");
+            var auditPairs = new List<Tuple<MerkleHash, MerkleHash>>();
+            MerkleHash testHash = leafHash;
+
+            // TODO: Inefficient - compute hashes directly.
+            foreach (MerkleProofHash auditHash in auditTrail)
+            {
+                switch (auditHash.Direction)
+                {
+                    case MerkleProofHash.Branch.Left:
+                        auditPairs.Add(new Tuple<MerkleHash, MerkleHash>(testHash, auditHash.Hash));
+                        testHash = MerkleHash.Create(testHash.Value.Concat(auditHash.Hash.Value).ToArray());
+                        break;
+
+                    case MerkleProofHash.Branch.Right:
+                        auditPairs.Add(new Tuple<MerkleHash, MerkleHash>(auditHash.Hash, testHash));
+                        testHash = MerkleHash.Create(auditHash.Hash.Value.Concat(testHash.Value).ToArray());
+                        break;
+                }
+            }
+
+            return auditPairs;
         }
 
         public static bool VerifyConsistency(MerkleHash oldRootHash, List<MerkleProofHash> proof)
