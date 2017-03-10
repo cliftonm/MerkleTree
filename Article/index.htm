@@ -10,6 +10,7 @@
 
 <p>Understanding Merkle Trees</p>
 <p>Why use them, who uses them, and how to use them</p>
+<p align="center"><img border="0" src="demo1.png" width="721" height="511"></p>
 <h2>Introduction</h2>
 <p>In 1979, Ralph Merkle<sup>1</sup> patented<sup>3</sup> the concept of hash 
 trees, or better known as a Merkle tree (the patent expired in 
@@ -378,25 +379,43 @@ hash, are the hashes of the nodes &quot;5&quot; and &quot;67&quot;.&nbsp; </p>
 <p><img border="0" src="consistency8.png" width="646" height="223"></p>
 <p>We need &quot;5&quot; to obtain &quot;45&quot;, and we need &quot;67&quot; to obtain &quot;4567&quot;.&nbsp; Cool 
 stuff!</p>
-<p>&nbsp;</p>
-<p>&nbsp;</p>
-<p>&nbsp;</p>
-<p>&nbsp;</p>
-<h2>Serialization</h2>
-<h3>The Merkle Tree</h3>
-<h3>The Audit Proof</h3>
-<h3>The Consistency Proof</h3>
-<p>&nbsp;</p>
-<h2>Storage Analysis</h2>
-<p>Merkle trees present a memory/disk space efficient way to store the 
-information for validating records.&nbsp; The data required to validate a proof 
-is also very efficient.</p>
-<p>todo - fill in with some analysis.</p>
+<h2>The Demo</h2>
+<p><img border="0" src="demo1.png" width="721" height="511"></p>
+<p>The demo lets you explore creating Merkle trees and performing audit and 
+consistency proofs.&nbsp; The graphic surface is implemented as an embedded
+<a href="https://www.codeproject.com/Articles/1136050/FlowSharp">FlowSharp</a> 
+service.</p>
+<p><img border="0" src="note.png" width="24" height="32"> The demo communicates 
+with the FlowSharp service using a websocket on port 1100 for the purpose of 
+creating shapes and connectors on the canvas.&nbsp; You will probably see the 
+Windows Firewall alert when you first run the demo.</p>
+<p><img border="0" src="firewall.png" width="527" height="381"></p>
+<p>Please click on &quot;Allow access.&quot;</p>
+<h3>Changing the Number of Leaves</h3>
+<p><img border="0" src="demo2.png" width="156" height="28"></p>
+<p>You can select up to 16 leaves.&nbsp; The leaf simulated hashes are 
+represented as 0-F for rendering convenience</p>
+<h3>Testing an Audit Proof</h3>
+<p><img border="0" src="demo3.png" width="266" height="199"></p>
+<p>You can test an audit proof by selecting the leaf you wish to audit (the leaf 
+number selection is 0-15, where 10-15 are represented as A-F on the graph.)&nbsp; 
+When you click on Show Me, the proof is displayed and the verification routine 
+is run.&nbsp; The graph also shows you the nodes involved in performing the 
+audit proof (see the numerous screenshots above.)</p>
+<h3>Testing a Consistency Proof</h3>
+<p><img border="0" src="demo4.png" width="265" height="236"></p>
+<p>You can test a consistency proof by selecting the number of leaves for which 
+you wish to test the consistency.&nbsp; The nodes involved in computing the old 
+root are indicated in yellow, the nodes for finishing the proof using the audit 
+proof are shown in purple:</p>
+<p><img border="0" src="demo5.png" width="648" height="221"></p>
+<p>The checkbox &quot;only to root node&quot; is basically just for making it easy to 
+create the screenshots where I discuss the first have of the consistency proof 
+-- you don't get the purple nodes involved in the second step, the audit proof.</p>
 <h2>Merkle Tree Implementation</h2>
+<p>&nbsp;</p>
 <h4>Hash Provider</h4>
 <h2>Unit Tests</h2>
-<h2>The Demo App</h2>
-<p>&nbsp;</p>
 <p>&nbsp;</p>
 <h2>Conclusion</h2>
 <p>Writing this article was definitely the embodiment of the experience &quot;you 
