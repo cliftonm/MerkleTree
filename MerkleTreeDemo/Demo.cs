@@ -17,7 +17,8 @@ namespace MerkleTreeDemo
         public const int LEAF_Y = 300;
         public const int V_OFFSET = 60;
         public const int X_OFFSET = 80;
-        public const int NODE_WIDTH = 75;
+        public const int LEAF_WIDTH = 75;
+        public const int NODE_WIDTH = 95;
         public const int NODE_HEIGHT = 30;
         public const string CRLF = "\r\n";
         public readonly Color LEAF_COLOR = Color.LightGreen;
@@ -61,63 +62,6 @@ namespace MerkleTreeDemo
             DrawTree(tree);
         }
 
-        public void AuditProofDemo()
-        {
-            MerkleTree tree = new MerkleTree();
-            CreateTree(tree, (int)nudNumLeaves.Value);
-            DrawTree(tree);
-            tree.RootNode.Leaves().Take(5).ForEach(n => Highlight(n, "Orange"));
-            DrawAuditProof("4", tree);
-        }
-
-        public void ConsistencyProofDemo()
-        {
-            MerkleTree hashTree0 = new MerkleTree();
-            hashTree0.AppendLeaves(new MerkleNode[]
-                {
-                    new MerkleNode(MerkleHash.Create("0")).SetText("0"),
-                    new MerkleNode(MerkleHash.Create("1")).SetText("1"),
-                    new MerkleNode(MerkleHash.Create("2")).SetText("2"),
-                });
-            MerkleHash hash0 = hashTree0.BuildTree();
-
-            MerkleTree hashTree1 = new MerkleTree();
-            hashTree1.AppendLeaves(new MerkleNode[]
-                {
-                    new MerkleNode(MerkleHash.Create("3")).SetText("3"),
-                });
-            MerkleHash hash1 = hashTree1.BuildTree();
-            hashTree0.AddTree(hashTree1);
-
-            MerkleTree hashTree2 = new MerkleTree();
-            hashTree2.AppendLeaves(new MerkleNode[]
-                {
-                    new MerkleNode(MerkleHash.Create("4")).SetText("4"),
-                    new MerkleNode(MerkleHash.Create("5")).SetText("5"),
-                });
-            MerkleHash hash2 = hashTree2.BuildTree();
-            hashTree0.AddTree(hashTree2);
-
-            MerkleTree hashTree3 = new MerkleTree();
-            hashTree3.AppendLeaves(new MerkleNode[]
-                {
-                    new MerkleNode(MerkleHash.Create("6")).SetText("6"),
-                    new MerkleNode(MerkleHash.Create("7")).SetText("7"),
-                });
-            MerkleHash rootHash = hashTree0.AddTree(hashTree3);
-
-            DrawTree(hashTree0);
-
-            // hashTree0 is now the full tree.
-            // In this case, we're providing the m-value for clarity of the demo.
-            // See diagram in section 2.1.3 of https://tools.ietf.org/html/rfc6962
-            // DrawConsistencyProof(hashTree0, hash0, 3, rootHash);
-            // DrawConsistencyProof(hashTree0, hash1, 4, rootHash);
-            // DrawConsistencyProof(hashTree0, hash1, 5, rootHash);
-            // DrawConsistencyProof(hashTree0, hash2, 6, rootHash);
-            // DrawConsistencyProof(hashTree0, hash2, 7, rootHash);
-        }
-
         public void CreateTree(MerkleTree tree, int numLeaves)
         {
             List<MerkleNode> leaves = new List<MerkleNode>();
@@ -125,7 +69,7 @@ namespace MerkleTreeDemo
             for (int i = 0; i < numLeaves; i++)
             {
                 var node = tree.AppendLeaf(MerkleHash.Create(i.ToString()));
-                node.Text = i.ToString();
+                node.Text = i.ToString("X");
             }
 
             tree.BuildTree();
@@ -157,6 +101,7 @@ namespace MerkleTreeDemo
             List<MerkleProofHash> proof = tree.AuditProof(node.Hash);
             bool ret = MerkleTree.VerifyAudit(tree.RootNode.Hash, node.Hash, proof);
             lblAuditPassFail.Text = ret ? "Pass" : "Fail";
+            lblAuditPassFail.ForeColor = ret ? Color.Green : Color.Red;
             tbAuditTrail.Clear();
 
             foreach (var auditHash in proof)
@@ -185,6 +130,7 @@ namespace MerkleTreeDemo
             List<MerkleProofHash> proofToOldRoot = tree.ConsistencyProof(m);
             bool ret = MerkleTree.VerifyConsistency(oldTreeRoot.Hash, proofToOldRoot);
             lblConsistencyPassFail.Text = ret ? "Pass" : "Fail";
+            lblConsistencyPassFail.ForeColor = ret ? Color.Green : Color.Red;
 
             tbConsistencyTrail.Clear();
 
@@ -197,36 +143,39 @@ namespace MerkleTreeDemo
 
             tbConsistencyTrail.AppendText(oldTreeRoot.Text + " = old root" + CRLF);
 
-            // The remainder: consistency audit proof.
-
-            var lastNode = proofToOldRoot.Last();
-            List<MerkleProofHash> proofToNewRoot = tree.ConsistencyAuditProof(lastNode.Hash);
-
-            foreach (var auditHash in proofToNewRoot)
+            if (!ckOnlyToOldRoot.Checked)
             {
-                // We use First because a tree with an odd number of leaves will duplicate the last leaf
-                // when computing the hash.
-                MerkleNode n = tree.RootNode.First(t => t.Hash == auditHash.Hash);
-                // tbAuditTrail.AppendText(n.Text + CRLF);
+                // The remainder: consistency audit proof.
 
-                if (!proofToOldRoot.Any(ph => ph.Hash == n.Hash))
+                var lastNode = proofToOldRoot.Last();
+                List<MerkleProofHash> proofToNewRoot = tree.ConsistencyAuditProof(lastNode.Hash);
+
+                foreach (var auditHash in proofToNewRoot)
                 {
-                    Highlight(n, "Purple");
+                    // We use First because a tree with an odd number of leaves will duplicate the last leaf
+                    // when computing the hash.
+                    MerkleNode n = tree.RootNode.First(t => t.Hash == auditHash.Hash);
+                    // tbAuditTrail.AppendText(n.Text + CRLF);
+
+                    if (!proofToOldRoot.Any(ph => ph.Hash == n.Hash))
+                    {
+                        Highlight(n, "Purple");
+                    }
                 }
+
+                var auditPairs = MerkleTree.AuditHashPairs(lastNode.Hash, proofToNewRoot);
+                string lastHash = "";
+
+                foreach (var pair in auditPairs)
+                {
+                    MerkleNode left = tree.RootNode.First(t => t.Hash == pair.Item1);
+                    MerkleNode right = tree.RootNode.First(t => t.Hash == pair.Item2);
+                    lastHash = left.Text + right.Text;
+                    tbConsistencyTrail.AppendText(left.Text + " + " + right.Text + " = " + lastHash + CRLF);
+                }
+
+                tbConsistencyTrail.AppendText(lastHash + " = new root" + CRLF);
             }
-
-            var auditPairs = MerkleTree.AuditHashPairs(lastNode.Hash, proofToNewRoot);
-            string lastHash = "";
-
-            foreach (var pair in auditPairs)
-            {
-                MerkleNode left = tree.RootNode.First(t => t.Hash == pair.Item1);
-                MerkleNode right = tree.RootNode.First(t => t.Hash == pair.Item2);
-                lastHash = left.Text + right.Text;
-                tbConsistencyTrail.AppendText(left.Text + " + " + right.Text + " = " + lastHash + CRLF);
-            }
-
-            tbConsistencyTrail.AppendText(lastHash + " = new root" + CRLF);
         }
 
         protected List<Rectangle> DrawLeaves(List<MerkleNode> leaves)
@@ -236,7 +185,7 @@ namespace MerkleTreeDemo
 
             foreach (var leaf in leaves)
             {
-                var leafRect = new Rectangle(i * X_OFFSET, LEAF_Y, NODE_WIDTH, NODE_HEIGHT);
+                var leafRect = new Rectangle(i * X_OFFSET, LEAF_Y, LEAF_WIDTH, NODE_HEIGHT);
                 WebSocketHelpers.DropShape("Box", leaf.Text, leafRect, LEAF_COLOR, leaf.Text);
                 rects.Add(leafRect);
                 leaf.Tag = leafRect;
@@ -251,13 +200,38 @@ namespace MerkleTreeDemo
             List<Rectangle> rects = new List<Rectangle>();
             int i = 0;
             int l0 = level - 1;
-            int indent = ((int)Math.Pow(2, l0) - 1) * X_OFFSET + X_OFFSET / 2;
-            int spacing = X_OFFSET * (int)Math.Pow(2, level);
+            int indent;
+            int spacing;
+            int width = NODE_WIDTH;
+
+            // Leaves and branches have different widths.
+            if (level == 1)
+            {
+                indent = LEAF_WIDTH / 2 - 5;
+                spacing = LEAF_WIDTH * 2 + 10;
+            }
+            else if (level == 2)
+            {
+                indent = ((int)Math.Pow(2, l0) - 1) * LEAF_WIDTH + LEAF_WIDTH / 2;
+                spacing = NODE_WIDTH * (int)Math.Pow(2, level) - NODE_WIDTH / 2 - 13;
+            }
+            else if (level == 3)
+            {
+                indent = ((int)Math.Pow(2, l0) - 1) * LEAF_WIDTH + LEAF_WIDTH / 2 + 10;
+                spacing = NODE_WIDTH * (int)Math.Pow(2, level) - NODE_WIDTH / 2 - 75;
+            }
+            else
+            {
+                indent = ((int)Math.Pow(2, l0) - 1) * LEAF_WIDTH + LEAF_WIDTH / 2 - 20;
+                spacing = NODE_WIDTH * (int)Math.Pow(2, level) - NODE_WIDTH / 2 - 30;
+                width = NODE_WIDTH * 2;
+            }
+
             Color nodeColor = parents.Count() == 1 ? ROOT_COLOR : NODE_COLOR;
 
             foreach (var node in parents)
             {
-                var nodeRect = new Rectangle(indent + i * spacing, LEAF_Y - (V_OFFSET * level), NODE_WIDTH, NODE_HEIGHT);
+                var nodeRect = new Rectangle(indent + i * spacing, LEAF_Y - (V_OFFSET * level), width, NODE_HEIGHT);
                 WebSocketHelpers.DropShape("Box", node.Text, nodeRect, nodeColor, node.Text);
                 rects.Add(nodeRect);
                 node.Tag = nodeRect;
@@ -308,8 +282,8 @@ namespace MerkleTreeDemo
             CreateTree(tree, (int)nudNumLeaves.Value);
             DrawTree(tree);
             int leafNum = (int)nudAuditProofNodeNumber.Value;
-            Highlight(tree.RootNode.Leaves().Single(n=>n.Text == leafNum.ToString()), "Orange");
-            DrawAuditProof(leafNum.ToString(), tree);
+            Highlight(tree.RootNode.Leaves().Single(n=>n.Text == leafNum.ToString("X")), "Orange");
+            DrawAuditProof(leafNum.ToString("X"), tree);
         }
 
         private void btnConsistencyProof_Click(object sender, EventArgs e)
