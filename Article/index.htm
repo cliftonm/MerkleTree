@@ -58,7 +58,31 @@ other systems to provide:</p>
 	<li>data verification</li>
 	<li>data synchronization</li>
 </ul>
-<p>What do these terms mean?</p>
+<p>What do these terms mean?&nbsp; I'll explain, but there's a part 2 to the 
+&quot;why&quot; question:</p>
+<p><img border="0" src="important.png" width="38" height="32"> Using a hash tree 
+like a Merkle tree:</p>
+<ol>
+	<li>Significantly reduces the amount of data that a trusted authority has to 
+	maintain to proof the integrity of the data.</li>
+	<li>Significantly reduces the network I/O packet size to perform consistency 
+	and data verification as well as data synchronization.</li>
+	<li>Separates the validation of the data from the data itself -- the Merkle 
+	tree can reside locally, or on a trusted authority, or can itself reside on 
+	a distributed system (perhaps you only maintain your own tree.)&nbsp; 
+	Decoupling the &quot;I can prove the data is valid&quot; from the data itself means 
+	you can implement the appropriate and separate (including redundant) 
+	persistence for both the Merkle tree and the data store.</li>
+</ol>
+<p>So the answer to the why is three-fold:</p>
+<ol>
+	<li>Merkle trees provide a means of proving that integrity / validity of 
+	your data.</li>
+	<li>Merkle trees require little memory / disk space and proofs are 
+	computationally easy and fast. </li>
+	<li>Merkle tree proofs and management requires only a very small and terse 
+	amount of information to be transmitted across a network.</li>
+</ol>
 <h3>Consistency Verification</h3>
 <p>This is known as a &quot;consistency proof&quot; because it lets you verify that any 
 two versions of a log are consistent:</p>
@@ -125,7 +149,9 @@ hash of the concatenated hashes of the two children.&nbsp; This process of
 re-hashing the concatenation of the child nodes to create the parent node is 
 performed until the top of the tree is reached, called the &quot;root hash.&quot;</p>
 <p><img border="0" src="tree1.png" width="796" height="226"></p>
-<p>The above diagram simulates the concatenation of the child hashes.</p>
+<p><img border="0" src="important.png" width="38" height="32">&nbsp; The above diagram 
+<u>simulates</u> the concatenation of the child hashes.&nbsp; We'll use this 
+simulation throughout the article.</p>
 <h3>How Does Data Verification (Audit Proof) Work?</h3>
 <p>Let's say you are the owner of the record &quot;2&quot; in the above diagram.&nbsp; You 
 also have, from a trusted authority, the root hash, which in our simulation is 
@@ -174,7 +200,14 @@ records:</p>
 3<br>
 45<br>
 6</p>
-<p>we have root hashes for the tree after the sub-tree was appended.&nbsp; We 
+<p>We have:</p>
+<ul>
+	<li>The new root hash for the tree after <i>all</i> the sub-trees were appended 
+	and... </li>
+	<li>The original hash of each tree <i>before</i> additional records were 
+	appended.&nbsp; </li>
+</ul>
+<p>We 
 now want to verify the root hashes when those sub-trees were added can be 
 reconstructed, even though the full tree's root hash has changed.&nbsp; This 
 verifies the order of the records and that the data associated with the record's 
@@ -198,12 +231,12 @@ in order to reconstruct the first tree's old root has of &quot;012&quot;.</p>
 <p>The root hash when we added the second tree, which appended one leaf &quot;3&quot; 
 for a total of 4 leaves now in the tree, was the 
 hash for the node &quot;0123&quot;.</p>
-<p>&nbsp;</p>
+<p><img border="0" src="consistency2.png" width="611" height="222"></p>
 <p>The consistency proof is simply the node that represents &quot;0123&quot;.</p>
 <p><u>Consistency Proof of the Third Tree</u></p>
 <p>The third tree added two nodes &quot;45&quot; and the root hash at that point was 
 &quot;012345&quot;.&nbsp; The consistency proof obtains that for us:</p>
-<p><img border="0" src="consistency3.png" width="648" height="224"></p>
+<p><img border="0" src="consistency9.png" width="646" height="224"></p>
 <p><u>Consistency Proof Another Scenario</u></p>
 <p>Let's say we added leaves &quot;4&quot;, &quot;5&quot;, and &quot;6&quot; separately.&nbsp; When we added 
 the leaf for &quot;4&quot;, we were given the hash for the node &quot;01234&quot; for the 5 leaves 
@@ -266,7 +299,8 @@ hash when the tree was appended, the order of the records and the records
 themselves are valid. </p>
 <h4>Consistency Proof General Algorithm</h4>
 <p>You can read through the consistency proof in section 2.1.2 of RFC 6962<sup>9</sup>, 
-or you can just go with this:</p>
+or you can just go with this, as illustrated by the following DRAKON diagram:</p>
+<p><img border="0" src="consistencyProofFlowchart.png" width="853" height="630"></p>
 <p><b>Rule 1</b>: Find the leftmost node of the tree from which we can start our 
 consistency proof.&nbsp; Usually, this will be a node representing a piece (the 
 left piece) of the hash needed to obtain the old root hash.</p>
@@ -333,22 +367,17 @@ m-k - SN's # of leaves, so we know to use the hash for &quot;0123&quot; plus the
 <p><b>m = 7</b>. k=4 (the number of leaves under &quot;0123&quot;).&nbsp; SN=&quot;456&quot;<br>
 m-k = SN's # of leaves, so we know to use the hash for &quot;0123&quot; plus the hash for 
 &quot;456&quot; to construct the existing root &quot;0123456&quot;</p>
-<p><b>Rule 3</b>: The remainder of the proof, from which can derive the current 
-root hash, involves:</p>
-<p>a: concatenating the last hash with the right sibling (if it exists) of the 
-last hash to obtain the parent hash.&nbsp; </p>
-<p>b: Continue with the audit proof (using the appropriate left or right 
-sibling) until the sibling whose hash is the first hash in the proof is 
-obtained.&nbsp; This is basically a verification that that hash (the first hash 
-in the proof) is encountered and should always be the left sibling.&nbsp; </p>
-<p>c: Combine the two hashes and continue with the audit proof until the root 
-node is encountered, whose hash should be the same as the current tree's hash.</p>
+<p><b>Rule 3</b>: Continue with the audit proof (using the appropriate left or right 
+sibling) for the node (not necessarily a leaf) of the last node in the 
+consistency proof.&nbsp; </p>
 <p>For example, given this consistency proof to the old hash for the tree 
 representing &quot;01234&quot; (this is the more interesting example):</p>
-<p><img border="0" src="consistency6.png" width="648" height="223"></p>
+<p><img border="0" src="consistency4.png" width="644" height="227"></p>
 <p>The nodes involved in the remainder of the proof, so that we obtain the root 
-hash, are the hashes of the nodes &quot;5&quot; and &quot;67&quot;.&nbsp; We need &quot;5&quot; to obtain 
-&quot;45&quot;, and we need &quot;67&quot; to obtain &quot;4567&quot;.&nbsp; Interesting, isn't it!</p>
+hash, are the hashes of the nodes &quot;5&quot; and &quot;67&quot;.&nbsp; </p>
+<p><img border="0" src="consistency8.png" width="646" height="223"></p>
+<p>We need &quot;5&quot; to obtain &quot;45&quot;, and we need &quot;67&quot; to obtain &quot;4567&quot;.&nbsp; Cool 
+stuff!</p>
 <p>&nbsp;</p>
 <p>&nbsp;</p>
 <p>&nbsp;</p>

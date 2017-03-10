@@ -197,7 +197,7 @@ namespace MerkleTreeDemo
 
             tbConsistencyTrail.AppendText(oldTreeRoot.Text + " = old root" + CRLF);
 
-            // The remainder:
+            // The remainder: consistency audit proof.
 
             var lastNode = proofToOldRoot.Last();
             List<MerkleProofHash> proofToNewRoot = tree.ConsistencyAuditProof(lastNode.Hash);

@@ -125,20 +125,6 @@ namespace Clifton.Blockchain
         }
 
         /// <summary>
-        /// Completes the consistency proof with an audit proof using the last node in the consistency proof.
-        /// </summary>
-        public List<MerkleProofHash> ConsistencyAuditProof(MerkleHash nodeHash)
-        {
-            List<MerkleProofHash> auditTrail = new List<MerkleProofHash>();
-
-            var node = RootNode.Single(n => n.Hash == nodeHash);
-            var parent = node.Parent;
-            BuildAuditTrail(auditTrail, parent, node);
-
-            return auditTrail;
-        }
-
-        /// <summary>
         /// Verifies ordering and consistency of the first n leaves, such that we reach the expected subroot.
         /// This verifies that the prior data has not been changed and that leaf order has been preserved.
         /// m is the number of leaves for which to do a consistency check.
@@ -203,9 +189,23 @@ namespace Clifton.Blockchain
                 }
             }
 
-            // Rule 3:
+            // Rule 3: Apply ConsistencyAuditProof below.
 
             return hashNodes;
+        }
+
+        /// <summary>
+        /// Completes the consistency proof with an audit proof using the last node in the consistency proof.
+        /// </summary>
+        public List<MerkleProofHash> ConsistencyAuditProof(MerkleHash nodeHash)
+        {
+            List<MerkleProofHash> auditTrail = new List<MerkleProofHash>();
+
+            var node = RootNode.Single(n => n.Hash == nodeHash);
+            var parent = node.Parent;
+            BuildAuditTrail(auditTrail, parent, node);
+
+            return auditTrail;
         }
 
         /// <summary>
