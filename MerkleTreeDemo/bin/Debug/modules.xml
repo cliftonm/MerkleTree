@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Modules>
+  <Module AssemblyName='Clifton.SemanticProcessorService.dll'/>
+  <Module AssemblyName='FlowSharpService.dll'/>
+  <Module AssemblyName='FlowSharpCanvasService.dll'/>
+  <Module AssemblyName='FlowSharpMouseControllerService.dll'/>
+  <Module AssemblyName='FlowSharpToolboxService.dll'/>
+  <Module AssemblyName='FlowSharpRestService.dll'/>
+  <Module AssemblyName='FlowSharpWebSocketService.dll'/>
+</Modules>
