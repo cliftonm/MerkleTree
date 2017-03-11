@@ -1,7 +1,12 @@
-﻿using System.Collections;
+﻿/* 
+* Copyright (c) Marc Clifton
+* The Code Project Open License (CPOL) 1.02
+* http://www.codeproject.com/info/cpol10.aspx
+*/
+
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
 
 using Clifton.Core.ExtensionMethods;
 
@@ -9,9 +14,6 @@ namespace Clifton.Blockchain
 {
     public class MerkleNode : IEnumerable<MerkleNode>
     {
-        public string Text { get; set; }     // Useful for diagramming.
-        public object Tag { get; set; }      // Useful for diagramming.
-
         public MerkleHash Hash { get; protected set; }
         public MerkleNode LeftNode { get; protected set; }
         public MerkleNode RightNode { get; protected set; }
@@ -40,14 +42,12 @@ namespace Clifton.Blockchain
             RightNode = right;
             LeftNode.Parent = this;
             RightNode.IfNotNull(r => r.Parent = this);
-            MergeText(left, right);
             ComputeHash();
         }
 
         public override string ToString()
         {
-            // Useful for debugging, we use the node text if it exists, otherwise return the hash as a string.
-            return Text ?? Hash.ToString();
+            return Hash.ToString();
         }
 
         IEnumerator IEnumerable.GetEnumerator()
@@ -60,6 +60,11 @@ namespace Clifton.Blockchain
             foreach (var n in Iterate(this)) yield return n;
         }
 
+        /// <summary>
+        /// Bottom-up/left-right iteration of the tree.
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
         protected IEnumerable<MerkleNode> Iterate(MerkleNode node)
         {
             if (node.LeftNode != null)
@@ -73,20 +78,6 @@ namespace Clifton.Blockchain
             }
 
             yield return node;
-        }
-
-        public MerkleNode SetText(string text)
-        {
-            Text = text;
-
-            return this;
-        }
-
-        public MerkleNode SetTag(object tag)
-        {
-            Tag = tag;
-
-            return this;
         }
 
         public MerkleHash ComputeHash(byte[] buffer)
@@ -131,7 +122,7 @@ namespace Clifton.Blockchain
         /// <returns>True if this node is a leaf or a branch with at least a left node.</returns>
         public bool CanVerifyHash()
         {
-            return (LeftNode == null && RightNode == null) || (LeftNode != null);
+            return (LeftNode != null && RightNode != null) || (LeftNode != null);
         }
 
         /// <summary>
@@ -151,10 +142,9 @@ namespace Clifton.Blockchain
             }
 
             MerkleTree.Contract(() => LeftNode != null, "Left branch must be a node if right branch is a node.");
-            SHA256 sha256 = SHA256Managed.Create();
-            byte[] hash = sha256.ComputeHash(LeftNode.Hash.Value.Concat(RightNode.Hash.Value).ToArray());
+            MerkleHash leftRightHash = MerkleHash.Create(LeftNode.Hash, RightNode.Hash);
 
-            return Hash.Equals(hash);
+            return Hash.Equals(leftRightHash);
         }
 
         /// <summary>
@@ -180,22 +170,6 @@ namespace Clifton.Blockchain
                 LeftNode.Hash : //MerkleHash.Create(LeftNode.Hash.Value.Concat(LeftNode.Hash.Value).ToArray()) : 
                 MerkleHash.Create(LeftNode.Hash.Value.Concat(RightNode.Hash.Value).ToArray());
             Parent?.ComputeHash();      // Recurse, because out hash has changed.
-        }
-
-        protected void MergeText(MerkleNode left, MerkleNode right)
-        {
-            // Useful for debugging, we combine the text of the two nodes.
-            string text = (left?.Text ?? "") + (right?.Text ?? "");
-
-            if (!string.IsNullOrEmpty(text))
-            {
-                if (right == null)
-                {
-                    text = text.Parens();
-                }
-
-                Text = text;
-            }
         }
     }
 }

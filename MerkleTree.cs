@@ -1,4 +1,10 @@
-﻿using System;
+﻿/* 
+* Copyright (c) Marc Clifton
+* The Code Project Open License (CPOL) 1.02
+* http://www.codeproject.com/info/cpol10.aspx
+*/
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -42,7 +48,7 @@ namespace Clifton.Blockchain
 
         public MerkleNode AppendLeaf(MerkleHash hash)
         {
-            var node = new MerkleNode(hash);
+            var node = CreateNode(hash);
             nodes.Add(node);
             leaves.Add(node);
 
@@ -79,7 +85,7 @@ namespace Clifton.Blockchain
             {
                 var lastLeaf = leaves.Last();
                 var l = AppendLeaf(lastLeaf.Hash);
-                l.Text = lastLeaf.Text;
+                // l.Text = lastLeaf.Text;
             }
         }
 
@@ -336,12 +342,25 @@ namespace Clifton.Blockchain
                 {
                     MerkleNode right = (i + 1 < nodes.Count) ? nodes[i + 1] : null;
                     // Constructing the MerkleNode resolves the right node being null.
-                    MerkleNode parent = new MerkleNode(nodes[i], right);
+                    MerkleNode parent = CreateNode(nodes[i], right);
                     parents.Add(parent);
                 }
 
                 BuildTree(parents);
             }
+        }
+
+        // Override in derived class to extend the behavior.
+        // Alternatively, we could implement a factory pattern.
+
+        protected virtual MerkleNode CreateNode(MerkleHash hash)
+        {
+            return new MerkleNode(hash);
+        }
+
+        protected virtual MerkleNode CreateNode(MerkleNode left, MerkleNode right)
+        {
+            return new MerkleNode(left, right);
         }
     }
 }

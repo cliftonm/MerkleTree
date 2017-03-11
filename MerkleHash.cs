@@ -1,4 +1,10 @@
-﻿using System;
+﻿/* 
+* Copyright (c) Marc Clifton
+* The Code Project Open License (CPOL) 1.02
+* http://www.codeproject.com/info/cpol10.aspx
+*/
+
+using System;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -24,6 +30,11 @@ namespace Clifton.Blockchain
         public static MerkleHash Create(string buffer)
         {
             return Create(Encoding.UTF8.GetBytes(buffer));
+        }
+
+        public static MerkleHash Create(MerkleHash left, MerkleHash right)
+        {
+            return Create(left.Value.Concat(right.Value).ToArray());
         }
 
         public static bool operator ==(MerkleHash h1, MerkleHash h2)
@@ -52,12 +63,9 @@ namespace Clifton.Blockchain
             return BitConverter.ToString(Value).Replace("-", "");
         }
 
-        /// <summary>
-        /// Compute the SHA256 hash of the data.
-        /// </summary>
         public void ComputeHash(byte[] buffer)
         {
-            SHA256 sha256 = SHA256Managed.Create();
+            SHA256 sha256 = SHA256.Create();
             SetHash(sha256.ComputeHash(buffer));
         }
 

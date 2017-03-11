@@ -1,5 +1,10 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿/* 
+* Copyright (c) Marc Clifton
+* The Code Project Open License (CPOL) 1.02
+* http://www.codeproject.com/info/cpol10.aspx
+*/
+
+using System.Collections.Generic;
 using System.Text;
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -192,7 +197,7 @@ namespace MerkleTests
                     MerkleHash.Create("2"),
                 });
 
-            startingNodes.ForEachWithIndex((n, i) => n.Text = i.ToString());
+            // startingNodes.ForEachWithIndex((n, i) => n.Text = i.ToString());
 
             MerkleHash firstRoot = tree.BuildTree();
 
@@ -202,7 +207,7 @@ namespace MerkleTests
             // for all the previous leaves.
             for (int i = 2; i < 100; i++)
             {
-                tree.AppendLeaf(MerkleHash.Create(i.ToString())).Text=i.ToString();
+                tree.AppendLeaf(MerkleHash.Create(i.ToString())); //.Text=i.ToString();
                 tree.BuildTree();
 
                 // After adding a leaf, verify that all the old root hashes exist.

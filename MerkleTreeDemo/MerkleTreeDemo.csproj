@@ -91,6 +91,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Bootstrap.cs" />
+    <Compile Include="DemoMerkleNode.cs" />
+    <Compile Include="DemoMerkleTree.cs" />
     <Compile Include="ExtensionMethods.cs" />
     <Compile Include="Demo.cs">
       <SubType>Form</SubType>
