@@ -223,7 +223,6 @@ namespace MerkleTests
                         hash = rhash = MerkleTree.ComputeHash(lhash, proof[hidx].Hash);
                         hidx -= 2;
 
-                        // foreach (var nextHashNode in proof.Skip(1))
                         while (hidx >= 0)
                         {
                             lhash = proof[hidx].Hash;

@@ -12,7 +12,6 @@ namespace Clifton.Blockchain
         {
             Left,
             Right,
-            Percolate,  // the child has no sibling, so the parent is a repeat of the child with the same hash.
             OldRoot,    // used for linear list of hashes to compute the old root in a consistency proof.
         }
 

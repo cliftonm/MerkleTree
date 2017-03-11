@@ -8,7 +8,7 @@
 
 <body>
 
-<p>Understanding Merkle Trees</p>
+<p>Understanding Merkle Trees, Part I</p>
 <p>Why use them, who uses them, and how to use them</p>
 <p align="center"><img border="0" src="demo1.png" width="721" height="511"></p>
 <h2>Introduction</h2>
@@ -50,17 +50,58 @@ database) where a record is allowed to change will update the hash of the record
 and thus the entire tree.&nbsp; In this scenario, a Merkle tree is used to 
 quickly and efficiently identify the changed record so that nodes in the 
 distributed system can be synchronized.</p>
-<h2>Why Merkle Trees?</h2>
+<h2>Who Uses Merkle Trees?</h2>
+<h3>Digital Currency</h3>
 <p>Merkle trees (and variations) are used by Bitcoin<sup>4</sup>, Ethereum<sup>6</sup>, Apache 
 Cassandra<sup>5</sup>, and 
 other systems to provide:</p>
 <ul>
 	<li>consistency verification</li>
 	<li>data verification</li>
-	<li>data synchronization</li>
+	<li>data synchronization (you'll have to wait for Part II, because data 
+	synchronization is a whole article unto itself.)</li>
 </ul>
-<p>What do these terms mean?&nbsp; I'll explain, but there's a part 2 to the 
-&quot;why&quot; question:</p>
+<p>What do these terms mean?&nbsp; I'll explain that soon!</p>
+<p>The concept of blockchains, which leverages Merkle trees, is growing in 
+popularity beyond bitcoin.&nbsp; Businesses that need to track data and verify 
+the integrity of the data are beginning to see how blockchains assist in that 
+process.&nbsp; </p>
+<h3>Global Supply Chain</h3>
+<p>For example, IBM and Laersk are teaming up to use blockchains for managing 
+the global supply chain:</p>
+<p><i>&quot;Technology giant IBM (NYSE: IBM) and Maersk, owner of the leading 
+transport and logistics company Maersk Line, have announced a potentially 
+groundbreaking collaboration to use “blockchain” technology to digitize 
+transactions among the world’s vast and interconnected network of shippers, 
+freight forwarders, ocean carriers, ports and customs authorities participating 
+in the supply chain. <br>
+<br>
+If widely adopted, the technology could transform the global, cross-border 
+supply chain and save the industry billions of dollars, according to IBM and 
+Maersk.&quot;</i><sup>10</sup></p>
+<h3>Health Care Industry</h3>
+<p><i>&quot;Google’s AI-powered health tech subsidiary, DeepMind Health, is planning 
+to use a new technology loosely based on bitcoin to let hospitals, the NHS and 
+eventually even patients track what happens to personal data in real-time.<br>
+<br>
+Dubbed “Verifiable Data Audit”, the plan is to create a special digital ledger 
+that automatically records every interaction with patient data in a 
+cryptographically verifiable manner. This means any changes to, or access of, 
+the data would be visible.&quot;</i><sup>11</sup></p>
+<h3>Capital Markets</h3>
+<p>Don't spend £2,500 to read the study.&nbsp; And should you ask, no, I didn't 
+either.</p>
+<p><i>&quot;Despite the fact that the blockchain was initially developed as a 
+freely-accessible, utility-like alternative to traditional means of recording 
+and storing the transfer of assets between counterparties within a distributed, 
+shared network, many fintech start-ups are focused on developing private 
+blockchains in 2015 that can only be accessed by pre-approved participants. 
+GreySpark believes this trend shows a disconnect between the business 
+imperatives of fintech start-ups to create blockchain solutions that garner 
+widespread uptake and the desire of banks and buyside firms to support a DLT 
+[Distributed Ledger Technology] solution designed to service every aspect of the 
+pre- and post-trade lifecycle.&quot;</i><sup>12</sup></p>
+<h2>Why Merkle Trees?</h2>
 <p><img border="0" src="important.png" width="38" height="32"> Using a hash tree 
 like a Merkle tree:</p>
 <ol>
@@ -127,6 +168,17 @@ as having been changed, only the record that is associated with that specific
 leaf is sent over the network.&nbsp; Note that Merkle trees do not directly 
 provide mechanisms for resolving collisions and synchronizing multiple writers 
 to the same record.&nbsp; We'll demonstrate how this works later on.</p>
+<p>As I mentioned above, you'll have to wait for Part II, because data 
+synchronization is a whole article unto itself.&nbsp; Basic synchronization (has 
+a leaf changed) is straight forward, but more complex synchronization in a 
+dynamic environment where leaves can be appended or deleted (not sure an insert 
+operation has any meaning), is a non-trivial problem.&nbsp; Technically, you may 
+not want to use Merkle trees for this, particularly since it invalidates the 
+point of an audit or consistency proof, but I think a discussion of this is 
+still worthwhile in the context of synchronizing distributed data, when it is 
+quite likely that a leaf, if not outright deleted, would at least be marked for 
+deletion.&nbsp; So, Merkle tree garbage collection is an issue involved in data 
+synchronization, at least in my thinking of the matter.</p>
 <h3>Proof is Critical</h3>
 <p><img border="0" src="key-small.png" width="94" height="33"></p>
 <p>Critical to the concept of a consistency proof and an audit proof is that 
@@ -719,20 +771,40 @@ protected void BuildTree(List&lt;MerkleNode&gt; nodes)
 /// &lt;returns&gt;The audit trail of hashes needed to create the root, or an empty list if the leaf hash doesn't exist.&lt;/returns&gt;
 public List&lt;MerkleProofHash&gt; AuditProof(MerkleHash leafHash)
 {
-List&lt;MerkleProofHash&gt; auditTrail = new List&lt;MerkleProofHash&gt;();
+  List&lt;MerkleProofHash&gt; auditTrail = new List&lt;MerkleProofHash&gt;();
+  var leafNode = FindLeaf(leafHash);
 
-var leafNode = FindLeaf(leafHash);
+  if (leafNode != null)
+  {
+    Contract(() =&gt; leafNode.Parent != null, &quot;Expected leaf to have a parent.&quot;);
+    var parent = leafNode.Parent;
+    BuildAuditTrail(auditTrail, parent, leafNode);
+  }
 
-if (leafNode != null)
+  return auditTrail;
+}
+
+protected void BuildAuditTrail(List&lt;MerkleProofHash&gt; auditTrail, MerkleNode parent, MerkleNode child)
 {
-Contract(() =&gt; leafNode.Parent != null, &quot;Expected leaf to have a parent.&quot;);
-var parent = leafNode.Parent;
-BuildAuditTrail(auditTrail, parent, leafNode);
-}
+  if (parent != null)
+  {
+    Contract(() =&gt; child.Parent == parent, &quot;Parent of child is not expected parent.&quot;);
+    var nextChild = parent.LeftNode == child ? parent.RightNode : parent.LeftNode;
+    var direction = parent.LeftNode == child ? MerkleProofHash.Branch.Left : MerkleProofHash.Branch.Right;
 
-return auditTrail;
-}
+    // For the last leaf, the right node may not exist. In that case, we ignore it because it's
+    // the hash we are given to verify.
+    if (nextChild != null)
+    {
+      auditTrail.Add(new MerkleProofHash(nextChild.Hash, direction));
+    }
 
+    BuildAuditTrail(auditTrail, child.Parent.Parent, child.Parent);
+  }
+}</pre>
+<h4>
+Consistency Proof</h4>
+<pre>
 /// &lt;summary&gt;
 /// Verifies ordering and consistency of the first n leaves, such that we reach the expected subroot.
 /// This verifies that the prior data has not been changed and that leaf order has been preserved.
@@ -740,67 +812,67 @@ return auditTrail;
 /// &lt;/summary&gt;
 public List&lt;MerkleProofHash&gt; ConsistencyProof(int m)
 {
-// Rule 1:
-// Find the leftmost node of the tree from which we can start our consistency proof.
-// Set k, the number of leaves for this node.
-List&lt;MerkleProofHash&gt; hashNodes = new List&lt;MerkleProofHash&gt;();
-int idx = (int)Math.Log(m, 2);
+  // Rule 1:
+  // Find the leftmost node of the tree from which we can start our consistency proof.
+  // Set k, the number of leaves for this node.
+  List&lt;MerkleProofHash&gt; hashNodes = new List&lt;MerkleProofHash&gt;();
+  int idx = (int)Math.Log(m, 2);
 
-// Get the leftmost node.
-MerkleNode node = leaves[0];
+  // Get the leftmost node.
+  MerkleNode node = leaves[0];
 
-// Traverse up the tree until we get to the node specified by idx.
-while (idx &gt; 0)
-{
-node = node.Parent;
---idx;
-}
+  // Traverse up the tree until we get to the node specified by idx.
+  while (idx &gt; 0)
+  {
+    node = node.Parent;
+    --idx;
+  }
 
-int k = node.Leaves().Count();
-hashNodes.Add(new MerkleProofHash(node.Hash, MerkleProofHash.Branch.OldRoot));
+  int k = node.Leaves().Count();
+  hashNodes.Add(new MerkleProofHash(node.Hash, MerkleProofHash.Branch.OldRoot));
 
-if (m == k)
-{
-// Continue with Rule 3 -- the remainder is the audit proof
-}
-else
-{
-// Rule 2:
-// Set the initial sibling node (SN) to the sibling of the node acquired by Rule 1.
-// if m-k == # of SN's leaves, concatenate the hash of the sibling SN and exit Rule 2, as this represents the hash of the old root.
-// if m - k &lt; # of SN's leaves, set SN to SN's left child node and repeat Rule 2.
+  if (m == k)
+  {
+    // Continue with Rule 3 -- the remainder is the audit proof
+  }
+  else
+  {
+    // Rule 2:
+    // Set the initial sibling node (SN) to the sibling of the node acquired by Rule 1.
+    // if m-k == # of SN's leaves, concatenate the hash of the sibling SN and exit Rule 2, as this represents the hash of the old root.
+    // if m - k &lt; # of SN's leaves, set SN to SN's left child node and repeat Rule 2.
 
-// sibling node:
-MerkleNode sn = node.Parent.RightNode;
-bool traverseTree = true;
+    // sibling node:
+    MerkleNode sn = node.Parent.RightNode;
+    bool traverseTree = true;
 
-while (traverseTree)
-{
-Contract(() =&gt; sn != null, &quot;Sibling node must exist because m != k&quot;);
-int sncount = sn.Leaves().Count();
+    while (traverseTree)
+    {
+      Contract(() =&gt; sn != null, &quot;Sibling node must exist because m != k&quot;);
+      int sncount = sn.Leaves().Count();
 
-if (m - k == sncount)
-{
-hashNodes.Add(new MerkleProofHash(sn.Hash, MerkleProofHash.Branch.OldRoot));
-break;
-}
+      if (m - k == sncount)
+      {
+        hashNodes.Add(new MerkleProofHash(sn.Hash, MerkleProofHash.Branch.OldRoot));
+        break;
+      }
 
-if (m - k &gt; sncount)
-{
-hashNodes.Add(new MerkleProofHash(sn.Hash, MerkleProofHash.Branch.OldRoot));
-sn = sn.Parent.RightNode;
-k += sncount;
-}
-else // (m - k &lt; sncount)
-{
-sn = sn.LeftNode;
-}
-}
-}
+      if (m - k &gt; sncount)
+      {
+        hashNodes.Add(new MerkleProofHash(sn.Hash, MerkleProofHash.Branch.OldRoot));
+        sn = sn.Parent.RightNode;
+        k += sncount;
+      }
+      else // (m - k &lt; sncount)
+      {
+        sn = sn.LeftNode;
+      }
+    }
+  }
 
-// Rule 3: Apply ConsistencyAuditProof below.
+  // Rule 3: Apply ConsistencyAuditProof below.
 
-return hashNodes;
+  return hashNodes;
 }
 
 /// &lt;summary&gt;
@@ -808,139 +880,120 @@ return hashNodes;
 /// &lt;/summary&gt;
 public List&lt;MerkleProofHash&gt; ConsistencyAuditProof(MerkleHash nodeHash)
 {
-List&lt;MerkleProofHash&gt; auditTrail = new List&lt;MerkleProofHash&gt;();
+  List&lt;MerkleProofHash&gt; auditTrail = new List&lt;MerkleProofHash&gt;();
 
-var node = RootNode.Single(n =&gt; n.Hash == nodeHash);
-var parent = node.Parent;
-BuildAuditTrail(auditTrail, parent, node);
+  var node = RootNode.Single(n =&gt; n.Hash == nodeHash);
+  var parent = node.Parent;
+  BuildAuditTrail(auditTrail, parent, node);
 
-return auditTrail;
+  return auditTrail;
 }
-
+</pre>
+<h4>
+Verify Audit Proof</h4>
+<pre>
 /// &lt;summary&gt;
 /// Verify that if we walk up the tree from a particular leaf, we encounter the expected root hash.
 /// &lt;/summary&gt;
 public static bool VerifyAudit(MerkleHash rootHash, MerkleHash leafHash, List&lt;MerkleProofHash&gt; auditTrail)
 {
-Contract(() =&gt; auditTrail.Count &gt; 0, &quot;Audit trail cannot be empty.&quot;);
-MerkleHash testHash = leafHash;
+  Contract(() =&gt; auditTrail.Count &gt; 0, &quot;Audit trail cannot be empty.&quot;);
+  MerkleHash testHash = leafHash;
 
-// TODO: Inefficient - compute hashes directly.
-foreach (MerkleProofHash auditHash in auditTrail)
-{
-testHash = auditHash.Direction == MerkleProofHash.Branch.Left ?
-MerkleHash.Create(testHash.Value.Concat(auditHash.Hash.Value).ToArray()) :
-MerkleHash.Create(auditHash.Hash.Value.Concat(testHash.Value).ToArray());
-}
+  // TODO: Inefficient - compute hashes directly.
+  foreach (MerkleProofHash auditHash in auditTrail)
+  {
+    testHash = auditHash.Direction == MerkleProofHash.Branch.Left ?
+    MerkleHash.Create(testHash.Value.Concat(auditHash.Hash.Value).ToArray()) :
+    MerkleHash.Create(auditHash.Hash.Value.Concat(testHash.Value).ToArray());
+  } 
 
-return rootHash == testHash;
-}
-
+  return rootHash == testHash;
+}<pre>
+<h4>Get the Audit Proof as Hash Pairs for Verification</h4>
+<pre>
 /// &lt;summary&gt;
 /// For demo / debugging purposes, we return the pairs of hashes used to verify the audit proof.
 /// &lt;/summary&gt;
 public static List&lt;Tuple&lt;MerkleHash, MerkleHash&gt;&gt; AuditHashPairs(MerkleHash leafHash, List&lt;MerkleProofHash&gt; auditTrail)
 {
-Contract(() =&gt; auditTrail.Count &gt; 0, &quot;Audit trail cannot be empty.&quot;);
-var auditPairs = new List&lt;Tuple&lt;MerkleHash, MerkleHash&gt;&gt;();
-MerkleHash testHash = leafHash;
+  Contract(() =&gt; auditTrail.Count &gt; 0, &quot;Audit trail cannot be empty.&quot;);
+  var auditPairs = new List&lt;Tuple&lt;MerkleHash, MerkleHash&gt;&gt;();
+  MerkleHash testHash = leafHash;
 
-// TODO: Inefficient - compute hashes directly.
-foreach (MerkleProofHash auditHash in auditTrail)
-{
-switch (auditHash.Direction)
-{
-case MerkleProofHash.Branch.Left:
-auditPairs.Add(new Tuple&lt;MerkleHash, MerkleHash&gt;(testHash, auditHash.Hash));
-testHash = MerkleHash.Create(testHash.Value.Concat(auditHash.Hash.Value).ToArray());
-break;
+  // TODO: Inefficient - compute hashes directly.
+  foreach (MerkleProofHash auditHash in auditTrail)
+  {
+    switch (auditHash.Direction)
+    {
+      case MerkleProofHash.Branch.Left:
+        auditPairs.Add(new Tuple&lt;MerkleHash, MerkleHash&gt;(testHash, auditHash.Hash));
+        testHash = MerkleHash.Create(testHash.Value.Concat(auditHash.Hash.Value).ToArray());
+        break;
 
-case MerkleProofHash.Branch.Right:
-auditPairs.Add(new Tuple&lt;MerkleHash, MerkleHash&gt;(auditHash.Hash, testHash));
-testHash = MerkleHash.Create(auditHash.Hash.Value.Concat(testHash.Value).ToArray());
-break;
-}
-}
+      case MerkleProofHash.Branch.Right:
+        auditPairs.Add(new Tuple&lt;MerkleHash, MerkleHash&gt;(auditHash.Hash, testHash));
+        testHash = MerkleHash.Create(auditHash.Hash.Value.Concat(testHash.Value).ToArray());
+        break;
+    }
+  }
 
-return auditPairs;
-}
-
+  return auditPairs;
+}<pre>
+<h4>Verify Consistency Proof</h4>
+<pre>
 public static bool VerifyConsistency(MerkleHash oldRootHash, List&lt;MerkleProofHash&gt; proof)
 {
-MerkleHash hash, lhash, rhash;
+  MerkleHash hash, lhash, rhash;
 
-if (proof.Count &gt; 1)
-{
-lhash = proof[proof.Count - 2].Hash;
-int hidx = proof.Count - 1;
-hash = rhash = MerkleTree.ComputeHash(lhash, proof[hidx].Hash);
-hidx -= 2;
+  if (proof.Count &gt; 1)
+  {
+    lhash = proof[proof.Count - 2].Hash;
+    int hidx = proof.Count - 1;
+    hash = rhash = MerkleTree.ComputeHash(lhash, proof[hidx].Hash);
+    hidx -= 2;
 
-// foreach (var nextHashNode in proof.Skip(1))
-while (hidx &gt;= 0)
-{
-lhash = proof[hidx].Hash;
-hash = rhash = MerkleTree.ComputeHash(lhash, rhash);
+    while (hidx &gt;= 0)
+    {
+      lhash = proof[hidx].Hash;
+      hash = rhash = MerkleTree.ComputeHash(lhash, rhash);
+      --hidx;
+    }
+  }
+  else
+  {
+    hash = proof[0].Hash;
+  }
 
---hidx;
+  return hash == oldRootHash;
 }
-}
-else
-{
-hash = proof[0].Hash;
-}
-
-return hash == oldRootHash;
-}
-
-public static MerkleHash ComputeHash(MerkleHash left, MerkleHash right)
-{
-return MerkleHash.Create(left.Value.Concat(right.Value).ToArray());
-}
-
-protected void BuildAuditTrail(List&lt;MerkleProofHash&gt; auditTrail, MerkleNode parent, MerkleNode child)
-{
-if (parent != null)
-{
-Contract(() =&gt; child.Parent == parent, &quot;Parent of child is not expected parent.&quot;);
-var nextChild = parent.LeftNode == child ? parent.RightNode : parent.LeftNode;
-var direction = parent.LeftNode == child ? MerkleProofHash.Branch.Left : MerkleProofHash.Branch.Right;
-
-// For the last leaf, the right node may not exist. In that case, we ignore it because it's
-// the hash we are given to verify.
-if (nextChild != null)
-{
-auditTrail.Add(new MerkleProofHash(nextChild.Hash, direction));
-}
-
-BuildAuditTrail(auditTrail, child.Parent.Parent, child.Parent);
-}
-}
-
+</pre>
+<h4>Find a Leaf in the List of Leaves</h4>
+<pre>
 protected MerkleNode FindLeaf(MerkleHash leafHash)
 {
-// TODO: We can improve the search for the leaf hash by maintaining a sorted list of leaf hashes.
-// We use First because a tree with an odd number of leaves will duplicate the last leaf
-// and will therefore have the same hash.
-return leaves.FirstOrDefault(l =&gt; l.Hash == leafHash);
+  // TODO: We can improve the search for the leaf hash by maintaining a sorted list of leaf hashes.
+  // We use First because a tree with an odd number of leaves will duplicate the last leaf
+  // and will therefore have the same hash.
+  return leaves.FirstOrDefault(l =&gt; l.Hash == leafHash);
 }
-
+</pre>
+<h4>Create MerkleNode Overrides for Custom Node Requirements</h4>
+<pre>
 // Override in derived class to extend the behavior.
 // Alternatively, we could implement a factory pattern.
 
 protected virtual MerkleNode CreateNode(MerkleHash hash)
 {
-return new MerkleNode(hash);
+  return new MerkleNode(hash);
 }
 
 protected virtual MerkleNode CreateNode(MerkleNode left, MerkleNode right)
 {
-return new MerkleNode(left, right);
-}
-}
+  return new MerkleNode(left, right);
 }
 </pre>
-<h4>Other Stuff</h4>
+<h4>Other Stuff - FixOddNumberLeaves</h4>
 <p>In bitcoin, a tree always has an even number of leaves.&nbsp; If the last 
 leaf in the tree is the left branch, then that last leaf is duplicated into the 
 right leaf position, and the parent's hash is therefore computed from the 
@@ -963,10 +1016,108 @@ public void FixOddNumberLeaves()
   }
 }
 </pre>
-<p>&nbsp;</p>
-<p>&nbsp;</p>
+<h4>
+Other Stuff - Compute Hash Given Two Hashes</h4>
+<pre>
+public static MerkleHash ComputeHash(MerkleHash left, MerkleHash right)
+{
+  return MerkleHash.Create(left.Value.Concat(right.Value).ToArray());
+}
+</pre>
+<h3>MerkleProofHash Class</h3>
+<p>This class is used by the audit proof, associating the left/right branch with 
+the proof hash, which is necessary to concatenate the two child hashes in the 
+correct order to obtain the parent hash.</p>
+<pre>namespace Clifton.Blockchain
+{
+  public class MerkleProofHash
+  {
+    public enum Branch
+    {
+      Left,
+      Right,
+      OldRoot, // used for linear list of hashes to compute the old root in a consistency proof.
+    }
+
+    public MerkleHash Hash { get; protected set; }
+    public Branch Direction { get; protected set; }
+
+    public MerkleProofHash(MerkleHash hash, Branch direction)
+    {
+      Hash = hash;
+      Direction = direction;
+    }
+
+    public override string ToString()
+    {
+      return Hash.ToString();
+    }
+  }
+}</pre>
 <h2>Unit Tests</h2>
-<p>&nbsp;</p>
+<p><img border="0" src="unittests.png" width="308" height="327"></p>
+<p>There are 14 unit tests, some of which are silly and most of which are 
+trivial.&nbsp; The most interesting unit test is the one for the consistency 
+proof, so that's the only one I'm going to describe here.</p>
+<h3>Consistency Proof Unit Test</h3>
+<p><img border="0" src="unittest.png" width="14" height="32"> This unit test 
+creates trees with 3 to 100 leaves and for each tree, tests that the old root 
+can be obtained for leaves [1, n-1] where n is the number of leaves in the test 
+tree.</p>
+<pre>[TestMethod]
+public void ConsistencyTest()
+{
+  // Start with a tree with 2 leaves:
+  MerkleTree tree = new MerkleTree();
+  var startingNodes = tree.AppendLeaves(new MerkleHash[]
+  {
+    MerkleHash.Create(&quot;1&quot;),
+    MerkleHash.Create(&quot;2&quot;),
+  });
+
+  MerkleHash firstRoot = tree.BuildTree();
+
+  List&lt;MerkleHash&gt; oldRoots = new List&lt;MerkleHash&gt;() { firstRoot };
+
+  // Add a new leaf and verify that each time we add a leaf, we can get a consistency check
+  // for all the previous leaves.
+  for (int i = 2; i &lt; 100; i++)
+  {
+    tree.AppendLeaf(MerkleHash.Create(i.ToString())); //.Text=i.ToString();
+    tree.BuildTree();
+
+    // After adding a leaf, verify that all the old root hashes exist.
+    oldRoots.ForEachWithIndex((oldRootHash, n) =&gt;
+    {
+      List&lt;MerkleProofHash&gt; proof = tree.ConsistencyProof(n+2);
+      MerkleHash hash, lhash, rhash;
+
+      if (proof.Count &gt; 1)
+      {
+        lhash = proof[proof.Count - 2].Hash;
+        int hidx = proof.Count - 1;
+        hash = rhash = MerkleTree.ComputeHash(lhash, proof[hidx].Hash);
+        hidx -= 2;
+
+        while (hidx &gt;= 0)
+        {
+          lhash = proof[hidx].Hash;
+          hash = rhash = MerkleTree.ComputeHash(lhash, rhash);
+          --hidx;
+        }
+      }
+      else
+      {
+        hash = proof[0].Hash;
+      }
+
+      Assert.IsTrue(hash == oldRootHash, &quot;Old root hash not found for index &quot; + i + &quot; m = &quot; + (n+2).ToString());
+    });
+
+    // Then we add this root hash as the next old root hash to check.
+    oldRoots.Add(tree.RootNode.Hash);
+  }
+}</pre>
 <h2>Conclusion</h2>
 <p>Writing this article was definitely the embodiment of the experience &quot;you 
 only understand it if you can teach it.&quot;&nbsp; It took a lot of research and 
@@ -978,6 +1129,10 @@ decided to answer them, at least for myself.&nbsp; Some of these answer may not
 be very good, some may go down unnecessary rabbit holes, etc., so keep in mind 
 that this represents a snapshot of my own investigation before even starting 
 this article.</p>
+<p>Before you read my probably bizarre though process below, one more concluding 
+thought -- blockchains and their variants are, in my opinion, destined to become 
+a core component in distributed data management.&nbsp; Merkle trees and similar 
+hash tree implementations are a cornerstone to how this technology works. </p>
 <p>Data Synchronization Q&amp;A</p>
 <ul>
 	<li>As the &quot;client&quot;, you're downloading a large file, say 10GB, spread 
@@ -1058,9 +1213,7 @@ if it simply said &quot;yes&quot;, how would you know you can trust it? By sendi
 left-right hashes, the server is telling you &quot;here is how I verified your 
 request.&quot; A server that is trying to get you to believe your chunk has is valid 
 cannot send you &quot;any&quot; audit trail hash because that would give a different root 
-hash.<br>
-&nbsp;</p>
-<p>&nbsp;</p>
+hash.</p>
 <h2>References</h2>
 <p><sup>1</sup> - <a href="https://en.wikipedia.org/wiki/Ralph_Merkle">Ralph 
 Merkle</a><br>
@@ -1080,8 +1233,16 @@ Ethereum</a><br>
 Consistency Proofs and Audit Proofs</a><br>
 <sup>8</sup> - <a href="https://en.bitcoin.it/wiki/Block">bitcoin block</a><br>
 9 - <a href="https://tools.ietf.org/html/rfc6962">RFC6962 - Certificate 
-Transparency</a></p>
-<p>&nbsp;</p>
+Transparency</a><br>
+10 -
+<a href="http://gcaptain.com/imb-maersk-reveal-blockchain-for-global-supply-chain/">
+IBM, Maersk Reveal Blockchain Solution for Global Supply Chain</a><br>
+11 -
+<a href="https://www.theguardian.com/technology/2017/mar/09/google-deepmind-health-records-tracking-blockchain-nhs-hospitals">
+Google's DeepMind plans bitcoin-style health record tracking for hospitals</a><br>
+12 -
+<a href="http://research.greyspark.com/2015/blockchain-capital-markets-use-cases-2/">
+The Blockchain: Capital Markets Use Cases</a></p>
 
 </body>
 
