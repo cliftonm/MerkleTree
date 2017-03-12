@@ -13,6 +13,7 @@ Why use them, who uses them, and how to use them</h2>
 <p>Get the latest source on GitHub:
 <a href="https://github.com/cliftonm/MerkleTree">
 https://github.com/cliftonm/MerkleTree</a></p>
+<p align="center"><img border="0" src="demo1.png" width="721" height="511"></p>
 <h2>Contents</h2><ul>
 <li><a href="#Introduction0">Introduction</a></li>
 <ul>
@@ -24,6 +25,7 @@ https://github.com/cliftonm/MerkleTree</a></p>
 <li><a href="#GlobalSupplyChain4">Global Supply Chain</a></li>
 <li><a href="#HealthCareIndustry5">Health Care Industry</a></li>
 <li><a href="#CapitalMarkets6">Capital Markets</a></li>
+<li><a href="#git">Git and Mercurial</a></li>
 </ul>
 <li><a href="#WhyMerkleTrees7">Why Merkle Trees?</a></li>
 <ul>
@@ -74,11 +76,11 @@ https://github.com/cliftonm/MerkleTree</a></p>
 <ul>
 	<li><a href="#ConsistencyProofUnitTest43">Consistency Proof Unit Test</a></li>
 </ul>
+<li><a href="#Monotonic1">Monotonic Hashes</a></li>
 <li><a href="#Conclusion44">Conclusion</a></li>
 <li><a href="#References45">References</a></li>
 </ul>
 <h2><a name="Introduction0">Introduction</a></h2>
-<p align="center"><img border="0" src="demo1.png" width="721" height="511"></p>
 <p>In 1979, Ralph Merkle<sup>1</sup> patented<sup>3</sup> the concept of hash 
 trees, or better known as a Merkle tree (the patent expired in 
 2002.)&nbsp; In summary: <i>&quot;The invention comprises a method of providing a 
@@ -156,7 +158,7 @@ that automatically records every interaction with patient data in a
 cryptographically verifiable manner. This means any changes to, or access of, 
 the data would be visible.&quot;</i><sup>11</sup></p>
 <h3><a name="CapitalMarkets6">Capital Markets</a></h3>
-<p>Don't spend �2,500 to read the study.&nbsp; And should you ask, no, I didn't 
+<p>Don't spend 2,500 British Pounds to read the study.&nbsp; And should you ask, no, I didn't 
 either.</p>
 <p><i>&quot;Despite the fact that the blockchain was initially developed as a 
 freely-accessible, utility-like alternative to traditional means of recording 
@@ -168,6 +170,10 @@ imperatives of fintech start-ups to create blockchain solutions that garner
 widespread uptake and the desire of banks and buyside firms to support a DLT 
 [Distributed Ledger Technology] solution designed to service every aspect of the 
 pre- and post-trade lifecycle.&quot;</i><sup>12</sup></p>
+<h3><a name="git">Git and Mercurial</a></h3>
+<p>Apparently (though I could not find what I consider to be an authoritative 
+source on the matter) both Git and Mercuriual use specialized Merkle trees for 
+managing versions.</p>
 <h2><a name="WhyMerkleTrees7">Why Merkle Trees?</a></h2>
 <p><img border="0" src="important.png" width="38" height="32"> Using a hash tree 
 like a Merkle tree:</p>
@@ -1187,7 +1193,46 @@ public void ConsistencyTest()
     oldRoots.Add(tree.RootNode.Hash);
   }
 }</pre>
-<h2><a name="Conclusion44">Conclusion</a></h2>
+<h2><a name="Monotonic1">Monotonic Hashes</a></h2>
+<p>Hash trees are one way of creating efficient proofs of data integrity.&nbsp; 
+Monotonic (sequentially ordered) can be an appropriate way of working with 
+hashes as well.&nbsp; One such example is
+<a href="http://ceptr.org/projects/holochain">Holochain</a> &quot;...a shared DHT in 
+which each piece of data is rooted in the signed hash chain of one or more 
+parties. It is a validating DHT so data cannot propagate without first being 
+validated by shared validation rules held by every node&quot;<sup>13</sup>&nbsp; It's 
+also possible to combine the two techniques together.&nbsp; As
+<a href="https://www.codeproject.com/Articles/894188/Introducing-Semtrex">Arthur</a> 
+wrote to me over Slack:</p>
+<p><i>Merkle trees can be used inside a holochain entry to have truly PRIVATE 
+data (not just encrypted), in a shared chain space.&nbsp; What I mean by this 
+is... Suppose you have a data structure with these 6 fields: </i></p>
+<ol>
+	<li><i>Sender_ID </i></li>
+	<li><i>Sender_Previous_Hash</i></li>
+	<li><i>Receiver_ID</i></li>
+	<li><i>Receiver_Previous_Hash</i></li>
+	<li><i>Number_Credits_Sent</i></li>
+	<li><i>Transaction_Payload</i></li>
+</ol>
+<p><i>If you structured these in a Merkle tree with these 6 leaves, you could 
+have both parties to the transaction commit the full transaction to their 
+private chains, and then both people put and sign a partial Merkle tree to the 
+shared DHT which does NOT contain the leaf node for field #6. This would be 
+adequate for doing a Merkle proof on the first 5 fields which need to be 
+published for managing the currency, allowing them to have digital assets, or 
+any other type of data in the hidden field which can ALWAYS stay hidden on your 
+local chain, visible only to you, without compromising the integrity of the data 
+needed to manage the mutual credit cryptocurrency.<br>
+<br>
+On blockchains all the data in the transaction goes onto the chain and you have 
+to encrypt the parts you want to keep private, and hope that neither your keys 
+nor the encryption scheme you've used are ever compromised on this permanent, 
+public record. On a holochain, because of the mechanism of the shared DHT being 
+'backed&quot; by data validation from local chains, you have the possibility of using 
+Merkle proofs to blend public/private data in ways which let you actually keep 
+the private data private.</i></p>
+<h2><a name="Conclusion44">Conclusionn</a></h2>
 <p>Writing this article was definitely the embodiment of the experience &quot;you 
 only understand it if you can teach it.&quot;&nbsp; It took a lot of research and 
 digging to understand not just the algorithms, specifically for the consistency 
@@ -1311,7 +1356,8 @@ IBM, Maersk Reveal Blockchain Solution for Global Supply Chain</a><br>
 Google's DeepMind plans bitcoin-style health record tracking for hospitals</a><br>
 12 -
 <a href="http://research.greyspark.com/2015/blockchain-capital-markets-use-cases-2/">
-The Blockchain: Capital Markets Use Cases</a></p>
+The Blockchain: Capital Markets Use Cases</a><br>
+13 - <a href="http://ceptr.org/projects/holochain">Holochain</a></p>
 
 </body>
 
