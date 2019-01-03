@@ -169,7 +169,7 @@ namespace Clifton.Blockchain
             Hash = RightNode == null ?
                 LeftNode.Hash : //MerkleHash.Create(LeftNode.Hash.Value.Concat(LeftNode.Hash.Value).ToArray()) : 
                 MerkleHash.Create(LeftNode.Hash.Value.Concat(RightNode.Hash.Value).ToArray());
-            Parent?.ComputeHash();      // Recurse, because out hash has changed.
+            //Parent?.ComputeHash();      // Recurse, because out hash has changed.
         }
     }
 }
